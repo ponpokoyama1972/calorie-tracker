@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="40" fill="#1D9E75"/>
+  <circle cx="96" cy="96" r="58" fill="none" stroke="white" stroke-width="10" stroke-dasharray="330" stroke-dashoffset="82" stroke-linecap="round" transform="rotate(-90 96 96)"/>
+  <text x="96" y="88" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="28" font-weight="600" fill="white">cal</text>
+  <text x="96" y="114" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="16" fill="rgba(255,255,255,0.8)">記録</text>
+</svg>

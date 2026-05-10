@@ -1,0 +1,14 @@
+{
+  "name": "カロリー記録",
+  "short_name": "カロリー",
+  "description": "毎日の食事カロリーを記録するアプリ",
+  "start_url": "/calorie-tracker/",
+  "scope": "/calorie-tracker/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#1D9E75",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
