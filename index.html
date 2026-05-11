@@ -1,457 +1,337 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="カロリー記録">
-  <meta name="theme-color" content="#1D9E75">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon.svg">
-  <title>カロリー記録</title>
-  <link rel="stylesheet" href="https://unpkg.com/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:       #ffffff;
-      --bg2:      #f8f8f6;
-      --bg3:      #f1efe8;
-      --text:     #1a1a18;
-      --text2:    #888780;
-      --text3:    #b4b2a9;
-      --border:   rgba(26,26,24,0.15);
-      --border2:  rgba(26,26,24,0.3);
-      --radius:   8px;
-      --radius-lg:12px;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg:      #1c1c1a;
-        --bg2:     #2c2c2a;
-        --bg3:     #3a3a38;
-        --text:    #f0ede8;
-        --text2:   #888780;
-        --text3:   #5f5e5a;
-        --border:  rgba(240,237,232,0.15);
-        --border2: rgba(240,237,232,0.3);
-      }
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
-      background: var(--bg2);
-      color: var(--text);
-      min-height: 100dvh;
-    }
-    #root {
-      max-width: 430px;
-      margin: 0 auto;
-      min-height: 100dvh;
-      background: var(--bg);
-      padding-bottom: env(safe-area-inset-bottom, 16px);
-    }
-    input[type="text"], input[type="number"] {
-      width: 100%;
-      padding: 9px 12px;
-      border: 0.5px solid var(--border2);
-      border-radius: var(--radius);
-      font-size: 16px;
-      background: var(--bg);
-      color: var(--text);
-      font-family: inherit;
-      outline: none;
-      -webkit-appearance: none;
-    }
-    input:focus { border-color: #1D9E75; box-shadow: 0 0 0 2px rgba(29,158,117,0.18); }
-    button {
-      font-family: inherit;
-      font-size: 14px;
-      padding: 7px 14px;
-      border: 0.5px solid var(--border2);
-      border-radius: var(--radius);
-      background: var(--bg);
-      color: var(--text);
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.1s;
-    }
-    button:active { background: var(--bg3); }
-    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="カロリー記録" />
+<title>カロリー記録</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f7f6f4; font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif; }
+  button { font-family: inherit; }
+</style>
 </head>
 <body>
-<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100dvh;color:#1D9E75;font-size:18px;">読み込み中…</div></div>
-
-<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script type="text/babel" data-presets="react">
+<div id="root"></div>
+<script type="text/babel">
 const { useState, useEffect } = React;
 
-const CATEGORIES = [
-  { id: "staple",     label: "主食" },
-  { id: "soup",       label: "汁物" },
-  { id: "main",       label: "メイン" },
-  { id: "sub",        label: "サブ" },
-  { id: "garnish",    label: "添え物" },
-  { id: "drink",      label: "飲物" },
-  { id: "mitsuboshi", label: "三ツ星F" },
-];
+const todayStr = () => {
+  const d = new Date();
+  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-");
+};
 
-const DEFAULT_FOODS = [
-  { id:"rice_med",   cat:"staple",  name:"ご飯",                unit:"茶碗(中)",    cal:252 },
-  { id:"rice_large", cat:"staple",  name:"ご飯",                unit:"茶碗(大)",    cal:336 },
-  { id:"rice_small", cat:"staple",  name:"ご飯",                unit:"茶碗(小)",    cal:168 },
-  { id:"bread6",     cat:"staple",  name:"食パン6枚切",          unit:"枚",          cal:158 },
-  { id:"bread8",     cat:"staple",  name:"食パン8枚切",          unit:"枚",          cal:118 },
-  { id:"oatmeal",    cat:"staple",  name:"オートミール",         unit:"杯(30g)",     cal:105 },
-  { id:"onigiri",    cat:"staple",  name:"おにぎり",             unit:"個",          cal:185 },
-  { id:"udon",       cat:"staple",  name:"うどん",               unit:"玉",          cal:220 },
-  { id:"soba",       cat:"staple",  name:"そば",                 unit:"玉",          cal:264 },
-  { id:"pasta",      cat:"staple",  name:"パスタ",               unit:"人前",        cal:380 },
-  { id:"miso",       cat:"soup",    name:"みそ汁",               unit:"杯",          cal:40  },
-  { id:"tonjiru",    cat:"soup",    name:"豚汁",                 unit:"杯",          cal:100 },
-  { id:"corn_soup",  cat:"soup",    name:"コーンスープ",         unit:"杯",          cal:75  },
-  { id:"tomato_soup",cat:"soup",    name:"トマトスープ",         unit:"杯",          cal:60  },
-  { id:"consomme",   cat:"soup",    name:"コンソメスープ",       unit:"杯",          cal:20  },
-  { id:"natto",      cat:"main",    name:"納豆",                 unit:"パック",      cal:100 },
-  { id:"tamagoyaki", cat:"main",    name:"卵焼き",               unit:"切れ(2切)",   cal:120 },
-  { id:"medamayaki", cat:"main",    name:"目玉焼き",             unit:"個",          cal:91  },
-  { id:"egg_boiled", cat:"main",    name:"ゆで卵",               unit:"個",          cal:77  },
-  { id:"salmon",     cat:"main",    name:"鮭の塩焼き",           unit:"切れ",        cal:130 },
-  { id:"yakizakana", cat:"main",    name:"焼き魚",               unit:"切れ",        cal:150 },
-  { id:"karaage",    cat:"main",    name:"唐揚げ",               unit:"個",          cal:80  },
-  { id:"hamburg",    cat:"main",    name:"ハンバーグ",           unit:"個",          cal:250 },
-  { id:"tonkatsu",   cat:"main",    name:"とんかつ",             unit:"枚",          cal:390 },
-  { id:"sausage",    cat:"main",    name:"ウインナー",           unit:"本",          cal:61  },
-  { id:"ham",        cat:"main",    name:"ハム",                 unit:"枚",          cal:35  },
-  { id:"tofu_cold",  cat:"main",    name:"冷奴",                 unit:"丁",          cal:80  },
-  { id:"kimchi",     cat:"sub",     name:"キムチ",               unit:"小皿(50g)",   cal:19  },
-  { id:"tsukemono",  cat:"sub",     name:"漬物",                 unit:"小皿",        cal:15  },
-  { id:"ohitashi",   cat:"sub",     name:"おひたし",             unit:"小皿",        cal:20  },
-  { id:"hijiki",     cat:"sub",     name:"ひじき煮",             unit:"小皿",        cal:50  },
-  { id:"kinpira",    cat:"sub",     name:"きんぴら",             unit:"小皿",        cal:60  },
-  { id:"potato_sal", cat:"sub",     name:"ポテトサラダ",         unit:"小皿",        cal:130 },
-  { id:"salad",      cat:"garnish", name:"サラダ(葉野菜)",       unit:"皿",          cal:20  },
-  { id:"tomato",     cat:"garnish", name:"トマト",               unit:"個",          cal:35  },
-  { id:"cucumber",   cat:"garnish", name:"きゅうり",             unit:"本",          cal:14  },
-  { id:"yogurt",     cat:"garnish", name:"ヨーグルト",           unit:"個(100g)",    cal:62  },
-  { id:"banana",     cat:"garnish", name:"バナナ",               unit:"本",          cal:86  },
-  { id:"apple",      cat:"garnish", name:"りんご",               unit:"1/4個",       cal:35  },
-  { id:"cheese",     cat:"garnish", name:"スライスチーズ",       unit:"枚",          cal:63  },
-  { id:"green_tea",  cat:"drink",   name:"緑茶",                 unit:"杯",          cal:2   },
-  { id:"blk_coffee", cat:"drink",   name:"コーヒー(ブラック)",   unit:"杯",          cal:4   },
-  { id:"cafe_lait",  cat:"drink",   name:"カフェオレ",           unit:"杯",          cal:56  },
-  { id:"milk",       cat:"drink",   name:"牛乳",                 unit:"200ml",       cal:134 },
-  { id:"tomato_j",   cat:"drink",   name:"トマトジュース",       unit:"200ml",       cal:35  },
-  { id:"oj",         cat:"drink",   name:"オレンジジュース",     unit:"200ml",       cal:84  },
-  { id:"beer",       cat:"drink",   name:"ビール",               unit:"350ml缶",     cal:140 },
-  { id:"sake",       cat:"drink",   name:"日本酒",               unit:"1合",         cal:185 },
-  { id:"ms_roast",   cat:"mitsuboshi", name:"レモンバターのやみつきローストチキン",      unit:"食", cal:280, note:true },
-  { id:"ms_salmon",  cat:"mitsuboshi", name:"幸せタルタルの国産サーモンフライ",          unit:"食", cal:310, note:true },
-  { id:"ms_demi",    cat:"mitsuboshi", name:"赤ワインと胡椒の大人のデミハンバーグ",      unit:"食", cal:290, note:true },
-  { id:"ms_tomato_h",cat:"mitsuboshi", name:"濃厚トマトソースとチーズの贅沢ハンバーグ", unit:"食", cal:300, note:true },
-  { id:"ms_onion_h", cat:"mitsuboshi", name:"コクと旨味のオニオンソースのハンバーグ",    unit:"食", cal:285, note:true },
-  { id:"ms_whitefsh",cat:"mitsuboshi", name:"白身魚の甘辛特製黒酢あん",                unit:"食", cal:250, note:true },
-  { id:"ms_ebi",     cat:"mitsuboshi", name:"プリッと甘旨 特製海老マヨ",                unit:"食", cal:265, note:true },
-  { id:"ms_gapao",   cat:"mitsuboshi", name:"とろーりタイ風コク旨ガパオ",               unit:"食", cal:280, note:true },
-  { id:"ms_tofu_h",  cat:"mitsuboshi", name:"ふわふわ豆腐バーグ白味噌きのこソース",      unit:"食", cal:230, note:true },
-  { id:"ms_chili",   cat:"mitsuboshi", name:"もち麦入りチリソースたっぷりハンバーグ",    unit:"食", cal:285, note:true },
-  { id:"ms_hash",    cat:"mitsuboshi", name:"ビストロ風トマトが入ったハッシュドビーフ",  unit:"食", cal:270, note:true },
-  { id:"ms_curry",   cat:"mitsuboshi", name:"ローストチキン スパイスバターのカリー仕立て",unit:"食", cal:285, note:true },
-  { id:"ms_suki",    cat:"mitsuboshi", name:"赤ワインでコクを出したご褒美トマトすき煮",  unit:"食", cal:240, note:true },
-  { id:"ms_tori",    cat:"mitsuboshi", name:"鶏の旨揚げ 具だくさんタルタルサラダ仕立て", unit:"食", cal:350, note:true },
-  { id:"ms_namafu",  cat:"mitsuboshi", name:"しにせの京なま麩 湯葉あんかけ仕立て",       unit:"食", cal:207, note:true },
-];
+const BUDGET_DEFAULT = 2000;
 
-const MEALS = [
-  { id:"morning", label:"朝食", icon:"ti-sun" },
-  { id:"lunch",   label:"昼食", icon:"ti-sun-high" },
-  { id:"dinner",  label:"夕食", icon:"ti-moon" },
-  { id:"snack",   label:"間食", icon:"ti-coffee" },
-];
+const FOOD_DB = {
+  主食: [
+    {name:"白米(150g)",kcal:252},{name:"白米(200g)",kcal:336},
+    {name:"食パン1枚",kcal:158},{name:"おにぎり1個",kcal:170},
+    {name:"うどん(1玉)",kcal:240},{name:"そば(1玉)",kcal:230},
+    {name:"パスタ(乾80g)",kcal:284},{name:"雑炊(1杯)",kcal:150},
+  ],
+  汁物: [
+    {name:"味噌汁",kcal:35},{name:"豚汁",kcal:120},
+    {name:"スープ",kcal:50},{name:"コンソメスープ",kcal:20},
+  ],
+  メイン: [
+    {name:"鶏胸肉ソテー",kcal:200},{name:"鮭の塩焼き",kcal:180},
+    {name:"豚しょうが焼き",kcal:320},{name:"ハンバーグ",kcal:380},
+    {name:"唐揚げ3個",kcal:270},{name:"目玉焼き",kcal:100},
+    {name:"卵焼き",kcal:120},{name:"豆腐(1/2丁)",kcal:80},{name:"納豆1パック",kcal:95},
+  ],
+  サブ: [
+    {name:"ほうれん草おひたし",kcal:30},{name:"きんぴらごぼう",kcal:80},
+    {name:"ひじき煮",kcal:60},{name:"冷奴",kcal:60},
+    {name:"サラダ(小)",kcal:50},{name:"ポテトサラダ",kcal:150},
+  ],
+  添え物: [
+    {name:"キャベツ千切り",kcal:20},{name:"レタス",kcal:10},
+    {name:"トマト1個",kcal:35},{name:"きゅうり",kcal:15},
+    {name:"梅干し1個",kcal:10},{name:"漬物小鉢",kcal:20},
+  ],
+  飲物: [
+    {name:"水/お茶(0kcal)",kcal:0},{name:"ブラックコーヒー",kcal:5},
+    {name:"牛乳200ml",kcal:134},{name:"豆乳200ml",kcal:92},
+    {name:"オレンジジュース",kcal:90},{name:"スポーツドリンク",kcal:50},
+  ],
+  "⭐三ツ星": [
+    {name:"ローストチキン",kcal:290},{name:"サーモンフライ",kcal:310},
+    {name:"デミグラスハンバーグ",kcal:380},{name:"ガパオライス",kcal:420},
+    {name:"海老マヨ",kcal:260},{name:"鶏のトマト煮",kcal:250},
+    {name:"豚の生姜焼き",kcal:340},{name:"チキン南蛮",kcal:400},
+    {name:"鮭の西京焼き",kcal:220},{name:"豆腐ハンバーグ",kcal:280},
+    {name:"チキンソテー",kcal:300},{name:"麻婆豆腐",kcal:350},
+    {name:"ビーフカレー(1食)",kcal:480},{name:"グリーンカレー",kcal:430},
+    {name:"パスタ(ミート)",kcal:520},
+  ],
+};
 
-const BUDGET_KEY = "cal_budget_v3";
-const CUSTOM_KEY = "cal_custom_v3";
-const tmplKey = m => `cal_tmpl_v3_${m}`;
-const confKey = (d,m) => `cal_conf_v3_${d}_${m}`;
-const todayStr = () => new Date().toISOString().slice(0,10);
-const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } },
-             set: (k,v) => { try { localStorage.setItem(k,v); } catch {} } };
+const PRESET_CATS = Object.keys(FOOD_DB);
+const ALL_CATS = [...PRESET_CATS, "✏️カスタム"];
+const MEAL_SLOTS = ["朝食","昼食","夕食","間食"];
 
-const G = { bg:"#E1F5EE", border:"#1D9E75", text:"#085041", mid:"#0F6E56", accent:"#1D9E75" };
-const S = { bg:"#FAEEDA", border:"#BA7517", text:"#412402", mid:"#854F0B", accent:"#EF9F27" };
+const loadDay = (date) => {
+  try { const r = localStorage.getItem("calorie_"+date); return r ? JSON.parse(r) : {朝食:[],昼食:[],夕食:[],間食:[]}; }
+  catch { return {朝食:[],昼食:[],夕食:[],間食:[]}; }
+};
+const saveDay = (date, data) => { try { localStorage.setItem("calorie_"+date, JSON.stringify(data)); } catch {} };
+const loadBudget = () => { try { return parseInt(localStorage.getItem("calorie_budget")) || BUDGET_DEFAULT; } catch { return BUDGET_DEFAULT; } };
+const saveBudget = (b) => { try { localStorage.setItem("calorie_budget", String(b)); } catch {} };
+const loadCustomFoods = () => { try { const r = localStorage.getItem("calorie_custom_foods"); return r ? JSON.parse(r) : []; } catch { return []; } };
+const saveCustomFoods = (f) => { try { localStorage.setItem("calorie_custom_foods", JSON.stringify(f)); } catch {} };
 
-function CalorieTracker() {
-  const [budget, setBudget]         = useState(2000);
-  const [date, setDate]             = useState(todayStr());
-  const [confirmed, setConfirmed]   = useState({});
-  const [editingMeal, setEditingMeal] = useState(null);
-  const [draft, setDraft]           = useState([]);
-  const [activeCat, setActiveCat]   = useState("staple");
-  const [customFoods, setCustomFoods] = useState([]);
-  const [showCF, setShowCF]         = useState(false);
-  const [cfName, setCfName]         = useState("");
-  const [cfCal, setCfCal]           = useState("");
-  const [showSettings, setShowSettings] = useState(false);
-  const [draftBudget, setDraftBudget] = useState("2000");
-  const [editingCalId, setEditingCalId] = useState(null);
+function App() {
+  const [date, setDate] = useState(() => todayStr());
+  const [meals, setMeals] = useState(() => loadDay(todayStr()));
+  const [budget, setBudget] = useState(() => loadBudget());
+  const [openSlot, setOpenSlot] = useState(null);
+  const [activeCat, setActiveCat] = useState(PRESET_CATS[0]);
+  const [editingKcal, setEditingKcal] = useState(null);
+  const [editingKcalVal, setEditingKcalVal] = useState("");
+  const [budgetEdit, setBudgetEdit] = useState(false);
+  const [budgetVal, setBudgetVal] = useState("");
+  const [customFoods, setCustomFoods] = useState(() => loadCustomFoods());
+  const [customName, setCustomName] = useState("");
+  const [customKcal, setCustomKcal] = useState("");
 
-  const allFoods = [...DEFAULT_FOODS, ...customFoods];
+  const isToday = date === todayStr();
 
-  useEffect(() => {
-    const b = ls.get(BUDGET_KEY); if (b) setBudget(parseInt(b)||2000);
-    const cf = ls.get(CUSTOM_KEY); if (cf) try { setCustomFoods(JSON.parse(cf)); } catch {}
-    const conf = {};
-    for (const m of MEALS) {
-      const r = ls.get(confKey(date, m.id));
-      conf[m.id] = r ? (() => { try { return JSON.parse(r); } catch { return []; } })() : [];
-    }
-    setConfirmed(conf);
-  }, [date]);
+  useEffect(() => { setMeals(loadDay(date)); }, [date]);
 
-  const openMeal = mealId => {
-    if (editingMeal === mealId) { setEditingMeal(null); return; }
-    let items = confirmed[mealId] || [];
-    if (!items.length) { const t = ls.get(tmplKey(mealId)); if (t) try { items = JSON.parse(t); } catch {} }
-    setDraft(items); setActiveCat("staple"); setShowCF(false); setEditingCalId(null); setEditingMeal(mealId);
+  const shiftDate = (delta) => {
+    const d = new Date(date + "T00:00:00");
+    d.setDate(d.getDate() + delta);
+    const next = [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-");
+    if (next > todayStr()) return;
+    setDate(next); setOpenSlot(null);
   };
 
-  const confirmMeal = () => {
-    const next = { ...confirmed, [editingMeal]: draft };
-    setConfirmed(next);
-    ls.set(confKey(date, editingMeal), JSON.stringify(draft));
-    ls.set(tmplKey(editingMeal), JSON.stringify(draft));
-    setEditingMeal(null);
-  };
-
-  const getQty = foodId => (draft.find(d => d.foodId === foodId)||{}).qty||0;
-  const getEffCal = item => item.calOverride ?? item.cal;
-
-  const setQty = (food, qty) => {
-    setDraft(prev => {
-      const filtered = prev.filter(d => d.foodId !== food.id);
-      if (qty <= 0) return filtered;
-      const ex = prev.find(d => d.foodId === food.id);
-      return [...filtered, ex ? {...ex,qty} : {foodId:food.id,cat:food.cat,name:food.name,unit:food.unit,cal:food.cal,qty,...(food.note?{note:true}:{})}];
+  const addFood = (slot, food) => {
+    setMeals(prev => {
+      const updated = {...prev, [slot]: [...prev[slot], {...food, id: Date.now()+Math.random()}]};
+      saveDay(date, updated); return updated;
     });
   };
-  const adjustQty = (foodId, delta) =>
-    setDraft(prev => prev.map(d => d.foodId===foodId ? {...d,qty:d.qty+delta} : d).filter(d=>d.qty>0));
-  const updateCal = (foodId, v) => {
-    const n = parseInt(v); if (!isNaN(n) && n>0) setDraft(prev => prev.map(d => d.foodId===foodId ? {...d,calOverride:n} : d));
-    setEditingCalId(null);
-  };
-  const addCustom = () => {
-    const cal = parseInt(cfCal); if (!cfName.trim()||isNaN(cal)||cal<=0) return;
-    const nf = {id:`c_${Date.now()}`,cat:activeCat,name:cfName.trim(),unit:"個",cal};
-    const next = [...customFoods, nf]; setCustomFoods(next); ls.set(CUSTOM_KEY,JSON.stringify(next));
-    setQty(nf,1); setCfName(""); setCfCal(""); setShowCF(false);
-  };
-  const saveBudget = () => {
-    const b = parseInt(draftBudget); if (!isNaN(b)&&b>0) { setBudget(b); ls.set(BUDGET_KEY,String(b)); }
-    setShowSettings(false);
-  };
-  const shiftDate = n => {
-    const d = new Date(date+"T00:00:00"); d.setDate(d.getDate()+n);
-    setDate(d.toISOString().slice(0,10)); setEditingMeal(null);
+
+  const removeFood = (slot, id) => {
+    setMeals(prev => {
+      const updated = {...prev, [slot]: prev[slot].filter(f => f.id !== id)};
+      saveDay(date, updated); return updated;
+    });
   };
 
-  const mealKcal = mid => (confirmed[mid]||[]).reduce((s,e)=>s+getEffCal(e)*e.qty,0);
-  const grandTotal = MEALS.reduce((s,m)=>s+mealKcal(m.id),0);
-  const draftTotal = draft.reduce((s,d)=>s+getEffCal(d)*d.qty,0);
-  const remain = budget-grandTotal, over = remain<0;
-  const pct = Math.min(100, Math.round((grandTotal/budget)*100));
-  const R=58, C=2*Math.PI*R, arc=C*(1-pct/100);
-  const ringColor = over?"#E24B4A":G.accent;
-  const isToday = date===todayStr();
-  const fmtDate = d => { const dt=new Date(d+"T00:00:00"); return `${dt.getMonth()+1}月${dt.getDate()}日（${"日月火水木金土"[dt.getDay()]}）`; };
-  const catFoods = allFoods.filter(f=>f.cat===activeCat);
-  const isStar = activeCat==="mitsuboshi";
-  const chipCol = item => item.cat==="mitsuboshi" ? S : G;
-
-  const QtyCtrl = ({foodId, size=22}) => {
-    const qty = getQty(foodId); if (!qty) return null;
-    return <div style={{display:"flex",alignItems:"center",gap:4}} onClick={e=>e.stopPropagation()}>
-      <button onClick={()=>adjustQty(foodId,-1)} style={{width:size,height:size,borderRadius:"50%",border:`0.5px solid ${G.border}`,background:"none",fontSize:15,color:G.mid,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>−</button>
-      <span style={{fontSize:13,fontWeight:500,minWidth:18,textAlign:"center",color:G.text}}>{qty}</span>
-      <button onClick={()=>adjustQty(foodId,+1)} style={{width:size,height:size,borderRadius:"50%",border:"none",background:G.accent,fontSize:15,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>+</button>
-    </div>;
+  const updateKcal = (slot, idx, val) => {
+    const n = parseInt(val);
+    if (isNaN(n) || n < 0) return;
+    setMeals(prev => {
+      const arr = [...prev[slot]];
+      arr[idx] = {...arr[idx], kcal: n, edited: true};
+      const updated = {...prev, [slot]: arr};
+      saveDay(date, updated); return updated;
+    });
+    setEditingKcal(null);
   };
 
-  const p = (style) => ({...style});
+  const addCustomOnce = (slot) => {
+    const n = parseInt(customKcal);
+    if (!customName.trim() || isNaN(n) || n < 0) return;
+    addFood(slot, {name: customName.trim(), kcal: n});
+    setCustomName(""); setCustomKcal("");
+  };
+
+  const registerAndAdd = (slot) => {
+    const n = parseInt(customKcal);
+    if (!customName.trim() || isNaN(n) || n < 0) return;
+    const food = {name: customName.trim(), kcal: n};
+    addFood(slot, food);
+    const updated = [...customFoods, food];
+    setCustomFoods(updated); saveCustomFoods(updated);
+    setCustomName(""); setCustomKcal("");
+  };
+
+  const removeCustomFood = (idx) => {
+    const updated = customFoods.filter((_,i) => i !== idx);
+    setCustomFoods(updated); saveCustomFoods(updated);
+  };
+
+  const totalKcal = Object.values(meals).flat().reduce((s,f) => s+f.kcal, 0);
+  const remaining = budget - totalKcal;
+  const pct = Math.min(100, Math.round(totalKcal/budget*100));
+  const over = totalKcal > budget;
+
+  const fmtDate = (d) => {
+    const obj = new Date(d+"T00:00:00");
+    const days = ["日","月","火","水","木","金","土"];
+    return `${obj.getMonth()+1}月${obj.getDate()}日(${days[obj.getDay()]})`;
+  };
 
   return (
-    <div style={{padding:"1rem 1rem 2rem"}}>
-      <h1 className="sr-only">カロリー記録アプリ</h1>
+    <div style={{fontFamily:"'Hiragino Sans',sans-serif",maxWidth:420,margin:"0 auto",padding:"12px 12px 80px",background:"#f7f6f4",minHeight:"100vh",fontSize:14}}>
 
-      {/* Header */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"1.25rem"}}>
-        <div>
-          <p style={{fontSize:13,color:"var(--text2)",margin:"0 0 2px"}}>{fmtDate(date)}{isToday?" · 今日":""}</p>
-          <p style={{fontSize:20,fontWeight:500,margin:0}}>カロリー記録</p>
+      {/* ヘッダー */}
+      <div style={{background:"#fff",borderRadius:14,padding:"14px 16px",marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+          <span style={{fontSize:16,fontWeight:700,color:"#333"}}>{fmtDate(date)}</span>
+          {isToday && <span style={{fontSize:11,background:"#4CAF50",color:"#fff",borderRadius:8,padding:"2px 8px"}}>今日</span>}
         </div>
-        <button onClick={()=>{setShowSettings(true);setDraftBudget(String(budget));}} style={{fontSize:12,padding:"4px 10px",marginTop:4}}>
-          <i className="ti ti-settings" aria-hidden="true" style={{fontSize:14,marginRight:3}}/>目標設定
-        </button>
-      </div>
-
-      {/* Settings */}
-      {showSettings && <div style={{background:"var(--bg2)",borderRadius:12,padding:"1rem",marginBottom:"1rem",border:"0.5px solid var(--border2)"}}>
-        <p style={{margin:"0 0 10px",fontWeight:500,fontSize:15}}>1日の目標カロリー</p>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <input type="number" value={draftBudget} onChange={e=>setDraftBudget(e.target.value)} style={{flex:1}}/>
-          <span style={{fontSize:13,color:"var(--text2)"}}>kcal</span>
-          <button onClick={saveBudget}>保存</button>
-          <button onClick={()=>setShowSettings(false)}>取消</button>
+        <div style={{fontSize:26,fontWeight:800,color:over?"#ef5350":"#333",textAlign:"center"}}>
+          {totalKcal} <span style={{fontSize:14,fontWeight:400}}>kcal</span>
         </div>
-        <p style={{fontSize:12,color:"var(--text3)",margin:"8px 0 0"}}>現在の推奨：2,000 kcal</p>
-      </div>}
-
-      {/* Ring */}
-      <div style={{background:"var(--bg2)",borderRadius:12,padding:"1.25rem",marginBottom:"1.25rem",border:"0.5px solid var(--border)",display:"flex",alignItems:"center",gap:"1.25rem"}}>
-        <svg width="136" height="136" viewBox="0 0 136 136" aria-label={`摂取カロリー ${grandTotal} kcal 目標の ${pct}%`}>
-          <circle cx="68" cy="68" r={R} fill="none" stroke="var(--border)" strokeWidth="10"/>
-          <circle cx="68" cy="68" r={R} fill="none" stroke={ringColor} strokeWidth="10"
-            strokeDasharray={C} strokeDashoffset={arc} strokeLinecap="round" transform="rotate(-90 68 68)"/>
-          <text x="68" y="60" textAnchor="middle" fontSize="22" fontWeight="500" fill="var(--text)">{grandTotal}</text>
-          <text x="68" y="76" textAnchor="middle" fontSize="11" fill="var(--text2)">kcal 摂取</text>
-          <text x="68" y="93" textAnchor="middle" fontSize="13" fontWeight="500" fill={ringColor}>{pct}%</text>
-        </svg>
-        <div style={{flex:1}}>
-          <div style={{marginBottom:14}}>
-            <p style={{fontSize:12,color:"var(--text2)",margin:"0 0 2px"}}>目標</p>
-            <p style={{fontSize:22,fontWeight:500,margin:0}}>{budget.toLocaleString()} <span style={{fontSize:13,fontWeight:400}}>kcal</span></p>
-          </div>
-          <div style={{borderTop:"0.5px solid var(--border)",paddingTop:12}}>
-            <p style={{fontSize:12,color:"var(--text2)",margin:"0 0 2px"}}>{over?"⚠ 超過":"残り"}</p>
-            <p style={{fontSize:22,fontWeight:500,margin:0,color:ringColor}}>{Math.abs(remain).toLocaleString()} <span style={{fontSize:13,fontWeight:400}}>kcal</span></p>
-          </div>
+        <div style={{fontSize:12,color:"#999",textAlign:"center",marginTop:2}}>
+          {over ? `⚠️ ${Math.abs(remaining)} kcal オーバー` : `残り ${remaining} kcal`}
+        </div>
+        <div style={{background:"#eee",borderRadius:8,height:10,margin:"10px 0 6px"}}>
+          <div style={{height:10,borderRadius:8,background:over?"#ef5350":"#66bb6a",width:pct+"%",transition:"width .3s"}} />
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#888"}}>
+          <span>0</span><span>{pct}%</span><span>{budget}</span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"center",marginTop:8}}>
+          <span style={{fontSize:12,color:"#999"}}>目標:</span>
+          {budgetEdit ? (
+            <>
+              <input type="number" value={budgetVal} onChange={e=>setBudgetVal(e.target.value)}
+                style={{width:70,fontSize:13,border:"1px solid #1976d2",borderRadius:6,padding:"2px 6px"}} autoFocus />
+              <button onClick={()=>{const n=parseInt(budgetVal);if(!isNaN(n)&&n>0){setBudget(n);saveBudget(n);}setBudgetEdit(false);}}
+                style={{background:"#1976d2",color:"#fff",border:"none",borderRadius:16,padding:"4px 12px",fontSize:12,cursor:"pointer"}}>確定</button>
+            </>
+          ) : (
+            <span onClick={()=>{setBudgetVal(String(budget));setBudgetEdit(true);}}
+              style={{fontSize:13,color:"#1976d2",cursor:"pointer",textDecoration:"underline dotted"}}>{budget} kcal ✏️</span>
+          )}
         </div>
       </div>
 
-      {/* Meal cards */}
-      {MEALS.map(meal => {
-        const items = confirmed[meal.id]||[], total = mealKcal(meal.id), editing = editingMeal===meal.id;
-        return <div key={meal.id} style={{marginBottom:"0.75rem",border:"0.5px solid var(--border)",borderRadius:12,overflow:"hidden",background:"var(--bg)"}}>
+      {/* 食事スロット */}
+      {MEAL_SLOTS.map(slot => {
+        const items = meals[slot] || [];
+        const slotKcal = items.reduce((s,f)=>s+f.kcal,0);
+        const open = openSlot === slot;
+        const isCustomTab = activeCat === "✏️カスタム";
+        return (
+          <div key={slot} style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
+            <button onClick={()=>setOpenSlot(open?null:slot)}
+              style={{width:"100%",textAlign:"left",background:open?"#e8f5e9":"#fafafa",border:"1px solid "+(open?"#a5d6a7":"#e0e0e0"),borderRadius:10,padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:items.length>0||open?8:0}}>
+              <span style={{fontWeight:700,color:"#333"}}>{slot}</span>
+              <span style={{fontSize:13,color:"#888"}}>{slotKcal>0?`${slotKcal} kcal`:"未入力"} {open?"▲":"▼"}</span>
+            </button>
 
-          <div onClick={()=>openMeal(meal.id)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",cursor:"pointer",borderBottom:(editing||(!editing&&items.length>0))?"0.5px solid var(--border)":"none"}}>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <i className={`ti ${meal.icon}`} style={{fontSize:17,color:"var(--text2)"}} aria-hidden="true"/>
-              <span style={{fontWeight:500}}>{meal.label}</span>
-              {items.length>0 && <span style={{fontSize:12,color:"var(--text3)",background:"var(--bg2)",padding:"1px 7px",borderRadius:10}}>{items.length}品</span>}
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              {total>0 && <span style={{fontSize:14,color:"var(--text2)"}}>{total} kcal</span>}
-              <i className="ti ti-chevron-down" aria-hidden="true" style={{fontSize:14,color:"var(--text3)",transform:editing?"rotate(180deg)":"none",transition:"transform 0.2s"}}/>
-            </div>
+            {items.map((f,i) => (
+              <div key={f.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 2px",borderBottom:"1px solid #f0f0f0"}}>
+                <span style={{flex:1,color:"#444",fontSize:13}}>{f.name}</span>
+                {editingKcal?.slot===slot&&editingKcal?.idx===i ? (
+                  <input type="number" value={editingKcalVal}
+                    onChange={e=>setEditingKcalVal(e.target.value)}
+                    onBlur={()=>updateKcal(slot,i,editingKcalVal)}
+                    style={{width:56,fontSize:13,border:"1px solid #1976d2",borderRadius:6,padding:"2px 4px",textAlign:"right"}} autoFocus />
+                ) : (
+                  <span onClick={()=>{setEditingKcal({slot,idx:i});setEditingKcalVal(String(f.kcal));}}
+                    style={{fontSize:13,color:"#1976d2",cursor:"pointer",marginRight:4,minWidth:60,textAlign:"right"}}>
+                    {f.kcal}{f.edited?"*":""} kcal
+                  </span>
+                )}
+                <button onClick={()=>removeFood(slot,f.id)}
+                  style={{color:"#e57373",background:"none",border:"none",cursor:"pointer",fontSize:18,padding:"0 4px"}}>×</button>
+              </div>
+            ))}
+
+            {open && (
+              <div style={{marginTop:8}}>
+                <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:6,marginBottom:8}}>
+                  {ALL_CATS.map(c=>(
+                    <button key={c} onClick={()=>setActiveCat(c)}
+                      style={{whiteSpace:"nowrap",padding:"5px 10px",borderRadius:20,border:"none",cursor:"pointer",fontSize:12,
+                        background:activeCat===c?(c==="⭐三ツ星"?"#ffd54f":c==="✏️カスタム"?"#e91e63":"#1976d2"):(c==="⭐三ツ星"?"#fff9c4":c==="✏️カスタム"?"#fce4ec":"#eee"),
+                        color:activeCat===c?(c==="⭐三ツ星"?"#7b5800":"#fff"):(c==="⭐三ツ星"?"#7b5800":c==="✏️カスタム"?"#c2185b":"#555"),
+                        fontWeight:activeCat===c?700:400}}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+
+                {isCustomTab ? (
+                  <div>
+                    <div style={{background:"#fce4ec",borderRadius:10,padding:"12px",marginBottom:10}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#c2185b",marginBottom:8}}>✏️ カスタム入力</div>
+                      <input type="text" placeholder="食品名（例：ヨーグルト）" value={customName} onChange={e=>setCustomName(e.target.value)}
+                        style={{width:"100%",fontSize:14,border:"1px solid #f48fb1",borderRadius:8,padding:"8px 10px",marginBottom:6,outline:"none"}} />
+                      <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8}}>
+                        <input type="number" placeholder="kcal数値" value={customKcal} onChange={e=>setCustomKcal(e.target.value)}
+                          style={{flex:1,fontSize:14,border:"1px solid #f48fb1",borderRadius:8,padding:"8px 10px",outline:"none"}} />
+                        <span style={{fontSize:13,color:"#999",whiteSpace:"nowrap"}}>kcal</span>
+                      </div>
+                      <div style={{display:"flex",gap:6}}>
+                        <button onClick={()=>addCustomOnce(slot)}
+                          style={{flex:1,background:"#fff",color:"#c2185b",border:"1px solid #f48fb1",borderRadius:8,padding:"9px",fontSize:13,cursor:"pointer",fontWeight:600}}>
+                          今回だけ追加
+                        </button>
+                        <button onClick={()=>registerAndAdd(slot)}
+                          style={{flex:1,background:"#e91e63",color:"#fff",border:"none",borderRadius:8,padding:"9px",fontSize:13,cursor:"pointer",fontWeight:600}}>
+                          登録して追加
+                        </button>
+                      </div>
+                      <div style={{fontSize:11,color:"#c2185b",marginTop:6,textAlign:"center",opacity:0.7}}>「登録して追加」すると次回以降も表示されます</div>
+                    </div>
+
+                    {customFoods.length > 0 ? (
+                      <div>
+                        <div style={{fontSize:12,color:"#999",marginBottom:6}}>登録済みのカスタム食品</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                          {customFoods.map((f,i)=>(
+                            <div key={i} style={{display:"flex",alignItems:"center",background:"#fce4ec",borderRadius:20,border:"1px solid #f48fb1",overflow:"hidden"}}>
+                              <button onClick={()=>addFood(slot,f)}
+                                style={{padding:"6px 10px",background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#c2185b",fontWeight:600}}>
+                                {f.name} {f.kcal}kcal
+                              </button>
+                              <button onClick={()=>removeCustomFood(i)}
+                                style={{padding:"4px 8px",background:"none",border:"none",borderLeft:"1px solid #f48fb1",cursor:"pointer",color:"#e57373",fontSize:14}}>×</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{textAlign:"center",color:"#ccc",fontSize:13,padding:"16px 0"}}>まだ登録した食品はありません</div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    {FOOD_DB[activeCat].map(f=>(
+                      <button key={f.name} onClick={()=>addFood(slot,f)}
+                        style={{padding:"6px 10px",borderRadius:20,border:"1px solid "+(activeCat==="⭐三ツ星"?"#ffd54f":"#ddd"),
+                          background:activeCat==="⭐三ツ星"?"#fffde7":"#f5f5f5",cursor:"pointer",fontSize:12,color:"#444",textAlign:"center"}}>
+                        {f.name}<br/><span style={{color:"#999",fontSize:11}}>{f.kcal} kcal</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-
-          {!editing && items.length>0 && <div style={{padding:"8px 12px",display:"flex",flexWrap:"wrap",gap:5}}>
-            {items.map(item => { const col=chipCol(item); return <span key={item.foodId} style={{fontSize:12,background:col.bg,border:`0.5px solid ${col.border}`,padding:"3px 9px",borderRadius:20,color:col.text}}>
-              {item.name.length>12?item.name.slice(0,12)+"…":item.name}{item.qty>1?` ×${item.qty}`:""}
-            </span>; })}
-          </div>}
-
-          {editing && <div>
-            {/* Toolbar */}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--bg2)",borderBottom:"0.5px solid var(--border)"}}>
-              <span style={{fontSize:14,color:"var(--text2)"}}>合計 <strong style={{color:"var(--text)",fontWeight:500}}>{draftTotal} kcal</strong></span>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setDraft([])} style={{fontSize:12,padding:"4px 10px"}}>クリア</button>
-                <button onClick={confirmMeal} style={{fontSize:12,padding:"5px 14px",background:G.accent,color:"#fff",border:"none",borderRadius:8,fontWeight:500}}>
-                  <i className="ti ti-check" aria-hidden="true" style={{marginRight:4,fontSize:13}}/>確定する
-                </button>
-              </div>
-            </div>
-
-            {/* Chips */}
-            {draft.length>0 && <div style={{padding:"10px 12px",borderBottom:"0.5px solid var(--border)",display:"flex",flexWrap:"wrap",gap:6}}>
-              {draft.map(item => { const col=chipCol(item), effCal=getEffCal(item), editing2=editingCalId===item.foodId;
-                return <div key={item.foodId} style={{display:"inline-flex",alignItems:"center",gap:5,background:col.bg,border:`0.5px solid ${col.border}`,borderRadius:20,padding:"4px 5px 4px 10px"}}>
-                  <span style={{fontSize:12,color:col.text,maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</span>
-                  {editing2
-                    ? <input type="number" defaultValue={effCal} autoFocus style={{width:52,fontSize:12,padding:"1px 4px",border:`1px solid ${col.border}`,borderRadius:4,background:"var(--bg)",color:"var(--text)"}}
-                        onBlur={e=>updateCal(item.foodId,e.target.value)}
-                        onKeyDown={e=>e.key==="Enter"&&updateCal(item.foodId,e.target.value)}/>
-                    : <span onClick={()=>setEditingCalId(item.foodId)} style={{fontSize:12,color:col.mid,cursor:"pointer",textDecoration:"underline dotted",textUnderlineOffset:2}} title="タップでkcal編集">
-                        {effCal*item.qty}kcal{item.note&&!item.calOverride?"*":""}
-                      </span>}
-                  <QtyCtrl foodId={item.foodId} size={20}/>
-                  <button onClick={()=>adjustQty(item.foodId,-999)} style={{width:18,height:18,borderRadius:"50%",border:"none",background:col.mid,color:"#fff",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",padding:0,marginLeft:1}}>✕</button>
-                </div>;
-              })}
-              {draft.some(d=>d.note&&!d.calOverride) && <p style={{width:"100%",fontSize:11,color:"var(--text3)",margin:"4px 0 0"}}>* 推定値 — タップしてパッケージの数値に変更できます</p>}
-            </div>}
-
-            {/* Category tabs */}
-            <div style={{display:"flex",overflowX:"auto",borderBottom:"0.5px solid var(--border)"}}>
-              {CATEGORIES.map(cat => { const sel=activeCat===cat.id, cnt=draft.filter(d=>d.cat===cat.id).length, star=cat.id==="mitsuboshi";
-                return <button key={cat.id} onClick={()=>{setActiveCat(cat.id);setShowCF(false);}}
-                  style={{flex:"none",padding:"9px 11px",fontSize:12,border:"none",background:sel?"var(--bg)":"var(--bg2)",borderBottom:sel?`2px solid ${star?S.accent:G.accent}`:"2px solid transparent",color:sel?(star?S.mid:G.mid):"var(--text2)",fontWeight:sel?500:400,whiteSpace:"nowrap",cursor:"pointer"}}>
-                  {cat.label}{cnt>0?<span style={{marginLeft:3,fontSize:10,background:star?S.accent:G.accent,color:"#fff",borderRadius:10,padding:"1px 5px"}}>{cnt}</span>:null}
-                </button>;
-              })}
-            </div>
-
-            {/* Mitsuboshi note */}
-            {isStar && <div style={{padding:"8px 12px",background:S.bg,borderBottom:"0.5px solid var(--border)",display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:16}}>⭐</span>
-              <p style={{fontSize:11,color:S.text,margin:0}}>カロリーは推定値です。選択後にkcalをタップしてパッケージの数値に変更できます</p>
-            </div>}
-
-            {/* Food grid */}
-            <div style={{padding:"10px",display:"grid",gridTemplateColumns:"repeat(2, minmax(0,1fr))",gap:6}}>
-              {catFoods.map(food => {
-                const qty=getQty(food.id), sel=qty>0, col=isStar?S:G, di=draft.find(d=>d.foodId===food.id), dispCal=di?getEffCal(di):food.cal;
-                return <div key={food.id} onClick={()=>!sel&&setQty(food,1)}
-                  style={{border:sel?`1.5px solid ${col.border}`:"0.5px solid var(--border)",borderRadius:8,padding:"9px 10px",cursor:sel?"default":"pointer",background:sel?col.bg:"var(--bg)"}}>
-                  <p style={{margin:"0 0 1px",fontSize:isStar?11:13,fontWeight:sel?500:400,color:sel?col.text:"var(--text)",lineHeight:1.3}}>{food.name}</p>
-                  <p style={{margin:sel?"0 0 7px":0,fontSize:11,color:sel?col.mid:"var(--text2)"}}>{food.unit} · {dispCal} kcal{food.note?"*":""}</p>
-                  {sel
-                    ? <div style={{display:"flex",alignItems:"center",gap:4}}><QtyCtrl foodId={food.id}/><span style={{fontSize:11,color:col.text,marginLeft:"auto",fontWeight:500}}>{dispCal*qty} kcal</span></div>
-                    : <p style={{margin:0,fontSize:11,color:"var(--text3)"}}>タップで追加 →</p>}
-                </div>;
-              })}
-              {!showCF && <button onClick={()=>setShowCF(true)} style={{border:"0.5px dashed var(--border2)",borderRadius:8,padding:"9px 10px",background:"none",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,color:"var(--text3)",minHeight:74,cursor:"pointer"}}>
-                <i className="ti ti-plus" style={{fontSize:18}} aria-hidden="true"/>
-                <span style={{fontSize:12}}>カスタム追加</span>
-              </button>}
-            </div>
-
-            {showCF && <div style={{padding:"0 10px 10px",display:"flex",flexDirection:"column",gap:8}}>
-              <input type="text" placeholder={`食品名（${CATEGORIES.find(c=>c.id===activeCat)?.label}に追加）`} value={cfName} onChange={e=>setCfName(e.target.value)}/>
-              <div style={{display:"flex",gap:8}}>
-                <input type="number" placeholder="カロリー (kcal)" value={cfCal} onChange={e=>setCfCal(e.target.value)} style={{flex:1}}/>
-                <button onClick={addCustom}>追加</button>
-                <button onClick={()=>setShowCF(false)}>取消</button>
-              </div>
-            </div>}
-          </div>}
-        </div>;
+        );
       })}
 
-      {/* Date nav */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"1.25rem"}}>
-        <button onClick={()=>shiftDate(-1)} style={{fontSize:13}}><i className="ti ti-arrow-left" aria-hidden="true" style={{marginRight:4}}/>前日</button>
-        {!isToday && <button onClick={()=>setDate(todayStr())} style={{fontSize:12}}>今日に戻る</button>}
-        <button onClick={()=>shiftDate(1)} style={{fontSize:13}}>翌日<i className="ti ti-arrow-right" aria-hidden="true" style={{marginLeft:4}}/></button>
+      {/* 日付ナビ */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+        <button onClick={()=>shiftDate(-1)}
+          style={{background:"none",border:"1px solid #ddd",borderRadius:20,padding:"8px 16px",cursor:"pointer",fontSize:13,color:"#555"}}>← 前日</button>
+        {!isToday && (
+          <button onClick={()=>{setDate(todayStr());setOpenSlot(null);}}
+            style={{background:"#1976d2",color:"#fff",border:"none",borderRadius:20,padding:"8px 18px",cursor:"pointer",fontSize:13}}>今日へ戻る</button>
+        )}
+        <button onClick={()=>shiftDate(1)} disabled={isToday}
+          style={{background:"none",border:"1px solid #ddd",borderRadius:20,padding:"8px 16px",fontSize:13,color:"#555",cursor:isToday?"not-allowed":"pointer",opacity:isToday?0.35:1}}>翌日 →</button>
       </div>
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<CalorieTracker/>);
-</script>
-
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW:', err));
-  });
-}
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
 </body>
 </html>
