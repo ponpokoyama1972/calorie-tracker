@@ -84,6 +84,25 @@ const saveDay = (date, data) => { try { localStorage.setItem("calorie_"+date, JS
 const loadBudget = () => { try { return parseInt(localStorage.getItem("calorie_budget")) || BUDGET_DEFAULT; } catch { return BUDGET_DEFAULT; } };
 const saveBudget = (b) => { try { localStorage.setItem("calorie_budget", String(b)); } catch {} };
 
+// ── バックアップ関数（追加） ──────────────────────────
+const exportBackup = () => {
+  const backup = { exportedAt: new Date().toISOString(), budget: loadBudget(), days: {} };
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("calorie_")) {
+      const dateKey = key.replace("calorie_", "");
+      try { backup.days[dateKey] = JSON.parse(localStorage.getItem(key)); } catch {}
+    }
+  }
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `calorie_backup_${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 function App() {
   const [date, setDate] = useState(() => todayStr());
   const [meals, setMeals] = useState(() => loadDay(todayStr()));
@@ -94,7 +113,6 @@ function App() {
   const [editingKcalVal, setEditingKcalVal] = useState("");
   const [budgetEdit, setBudgetEdit] = useState(false);
   const [budgetVal, setBudgetVal] = useState("");
-  // カスタム入力（スロットごと）
   const [customName, setCustomName] = useState("");
   const [customKcal, setCustomKcal] = useState("");
   const [customQty, setCustomQty] = useState("1");
@@ -210,7 +228,6 @@ function App() {
               <span style={{fontSize:13,color:"#888"}}>{slotKcal>0?`${slotKcal} kcal`:"未入力"} {open?"▲":"▼"}</span>
             </button>
 
-            {/* 追加済みリスト */}
             {items.map((f,i) => (
               <div key={f.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 2px",borderBottom:"1px solid #f0f0f0"}}>
                 <span style={{flex:1,color:"#444",fontSize:13}}>{f.name}</span>
@@ -230,10 +247,8 @@ function App() {
               </div>
             ))}
 
-            {/* 食品選択パネル */}
             {open && (
               <div style={{marginTop:8}}>
-                {/* カテゴリタブ */}
                 <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:6,marginBottom:8}}>
                   {CATS.map(c=>(
                     <button key={c} onClick={()=>setActiveCat(c)}
@@ -246,7 +261,6 @@ function App() {
                   ))}
                 </div>
 
-                {/* プリセット食品 */}
                 <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
                   {FOOD_DB[activeCat].map(f=>(
                     <button key={f.name} onClick={()=>addFood(slot,f)}
@@ -257,7 +271,6 @@ function App() {
                   ))}
                 </div>
 
-                {/* カスタム入力欄（全カテゴリ共通） */}
                 <div style={{background:"#f0f4ff",borderRadius:10,padding:"10px 12px",borderTop:"1px solid #e0e8ff"}}>
                   <div style={{fontSize:11,fontWeight:700,color:"#1976d2",marginBottom:6}}>✏️ カスタム入力</div>
                   <input type="text" placeholder="食品名" value={customName} onChange={e=>setCustomName(e.target.value)}
@@ -294,6 +307,18 @@ function App() {
         <button onClick={()=>shiftDate(1)} disabled={isToday}
           style={{background:"none",border:"1px solid #ddd",borderRadius:20,padding:"8px 16px",fontSize:13,color:"#555",cursor:isToday?"not-allowed":"pointer",opacity:isToday?0.35:1}}>翌日 →</button>
       </div>
+
+      {/* ── バックアップボタン（追加） ── */}
+      <div style={{marginTop:20,textAlign:"center"}}>
+        <button onClick={exportBackup}
+          style={{background:"none",border:"1px solid #bbb",borderRadius:20,padding:"8px 20px",fontSize:12,color:"#888",cursor:"pointer"}}>
+          💾 データをバックアップ（JSON）
+        </button>
+        <div style={{fontSize:10,color:"#bbb",marginTop:4}}>
+          iPhoneのファイルアプリに保存してください
+        </div>
+      </div>
+
     </div>
   );
 }
