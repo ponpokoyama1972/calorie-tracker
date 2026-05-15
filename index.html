@@ -1,329 +1,702 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="カロリー記録" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="カロリー記録">
 <title>カロリー記録</title>
-<link rel="apple-touch-icon" href="icon.png">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #f7f6f4; font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif; }
-  button { font-family: inherit; }
+:root {
+  --pri: #E8604A; --pri-l: #FFF0EB; --pri-d: #C0402A;
+  --ok: #52B78B; --ok-l: #E8F5EE;
+  --warn: #F5A623; --warn-l: #FFF3E0;
+  --danger: #E84A4A; --danger-l: #FFEBEB;
+  --bg: #FFF8F5; --card: #FFFFFF;
+  --text: #2C1810; --muted: #9A7B72; --border: #F0E0D8;
+  --nav-h: 64px; --safe-b: env(safe-area-inset-bottom, 0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+#app{max-width:430px;margin:0 auto;position:relative;}
+.screen{display:none;padding-bottom:calc(var(--nav-h) + var(--safe-b) + 8px);}
+.screen.active{display:block;}
+
+/* Nav */
+#bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--card);border-top:1px solid var(--border);display:flex;height:calc(var(--nav-h) + var(--safe-b));padding-bottom:var(--safe-b);z-index:100;box-shadow:0 -1px 12px rgba(0,0,0,.06);}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;transition:color .15s;}
+.nav-btn.active{color:var(--pri);}
+.nav-icon{font-size:21px;line-height:1;}
+
+/* Date nav */
+.date-nav{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
+.date-arrow{width:36px;height:36px;border:1px solid var(--border);border-radius:50%;background:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text);transition:opacity .15s;}
+.date-arrow:disabled{opacity:.25;}
+.date-center{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.date-label{font-size:16px;font-weight:700;}
+.today-pill{font-size:11px;color:var(--pri);border:1px solid var(--pri);border-radius:20px;padding:3px 10px;background:none;cursor:pointer;font-weight:600;}
+
+/* Budget */
+.budget-section{padding:14px 16px 16px;background:var(--card);margin-bottom:8px;}
+.budget-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+.budget-consumed{font-size:28px;font-weight:800;letter-spacing:-.5px;}
+.budget-of{font-size:13px;color:var(--muted);}
+.budget-remain{font-size:14px;font-weight:700;}
+.bar-wrap{background:#F0E0D8;border-radius:6px;height:8px;overflow:hidden;}
+.bar{height:100%;border-radius:6px;transition:width .4s,background .3s;}
+
+/* Slots */
+.slot{background:var(--card);margin-bottom:8px;}
+.slot-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none;}
+.slot-name{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.slot-kcal{font-size:15px;font-weight:700;color:var(--pri);}
+.chevron{font-size:11px;color:var(--muted);transition:transform .2s;}
+.chevron.open{transform:rotate(180deg);}
+.food-list{padding:0 16px 2px;}
+.food-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+.food-row:last-child{border-bottom:none;}
+.food-nm{flex:1;font-size:14px;}
+.kcal-btn{font-size:13px;font-weight:700;color:var(--pri);background:var(--pri-l);border:none;border-radius:6px;padding:4px 9px;cursor:pointer;min-width:58px;text-align:right;}
+.del-btn{width:28px;height:28px;border:none;background:none;font-size:20px;cursor:pointer;color:var(--muted);border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1;}
+.del-btn:active{background:#FFE0D8;}
+.kcal-edit-row{display:flex;align-items:center;gap:4px;}
+.kcal-edit-inp{width:62px;font-size:14px;font-weight:700;border:1.5px solid var(--pri);border-radius:6px;padding:3px 6px;color:var(--pri);text-align:right;}
+.kcal-ok{font-size:12px;background:var(--pri);color:#fff;border:none;border-radius:5px;padding:4px 9px;cursor:pointer;font-weight:600;}
+
+/* Add panel */
+.add-panel{padding:4px 16px 14px;}
+.cat-tabs{display:flex;gap:6px;overflow-x:auto;padding:8px 0;scrollbar-width:none;}
+.cat-tabs::-webkit-scrollbar{display:none;}
+.cat-tab{flex-shrink:0;font-size:12px;font-weight:500;padding:5px 13px;border-radius:20px;border:1px solid var(--border);background:none;cursor:pointer;color:var(--muted);white-space:nowrap;transition:all .15s;}
+.cat-tab.active{background:var(--pri);color:#fff;border-color:var(--pri);}
+.food-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:6px;}
+.food-btn{font-size:12px;padding:8px 7px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;text-align:left;color:var(--text);line-height:1.4;transition:all .12s;}
+.food-btn:active{background:var(--pri-l);border-color:var(--pri);}
+.fb-nm{display:block;font-weight:500;}
+.fb-kc{display:block;color:var(--muted);font-size:10px;}
+.custom-row{display:flex;gap:6px;margin-top:10px;}
+.custom-nm{flex:1;font-size:14px;border:1px solid var(--border);border-radius:8px;padding:9px 10px;background:var(--card);}
+.custom-kc{width:70px;font-size:14px;border:1px solid var(--border);border-radius:8px;padding:9px 8px;text-align:center;background:var(--card);}
+.custom-add{font-size:13px;font-weight:700;background:var(--pri);color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;}
+.suggest-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.suggest-chip{font-size:12px;padding:5px 10px;border:1px solid var(--pri);border-radius:20px;background:var(--pri-l);color:var(--pri);cursor:pointer;font-weight:600;}
+
+/* Calendar */
+.sec-hd{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
+.sec-title{font-size:17px;font-weight:700;}
+.icon-btn{width:34px;height:34px;border:1px solid var(--border);border-radius:50%;background:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);padding:8px;gap:4px;background:var(--card);}
+.cal-dow{text-align:center;font-size:11px;font-weight:600;color:var(--muted);padding:4px 0;}
+.cal-day{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all .15s;}
+.cal-day.clickable{cursor:pointer;}
+.cal-day-n{font-size:13px;font-weight:700;line-height:1;}
+.cal-day-k{font-size:9px;line-height:1;}
+.d-none{background:#F8F4F2;color:var(--muted);}
+.d-ok{background:var(--ok-l);color:#1A6644;}
+.d-warn{background:var(--warn-l);color:#8B5200;}
+.d-over{background:var(--danger-l);color:#B52222;}
+.d-today{outline:2px solid var(--pri);outline-offset:1px;}
+.d-future{opacity:.3;}
+.cal-sum{margin:8px;background:var(--card);border-radius:12px;padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;}
+.cs-val{font-size:20px;font-weight:800;color:var(--pri);}
+.cs-lbl{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* Stats */
+.toggle-wrap{display:flex;margin:12px 16px;background:var(--border);border-radius:10px;padding:3px;}
+.toggle-btn{flex:1;font-size:14px;font-weight:600;border:none;border-radius:8px;padding:7px;cursor:pointer;background:none;color:var(--muted);transition:all .2s;}
+.toggle-btn.active{background:var(--card);color:var(--pri);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.chart-area{padding:0 16px;overflow:hidden;}
+.bars-row{display:flex;align-items:flex-end;gap:4px;height:180px;position:relative;padding-bottom:20px;}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer;gap:1px;}
+.bar-fill{width:100%;border-radius:3px 3px 0 0;min-height:2px;transition:height .35s;}
+.bar-dow{font-size:10px;color:var(--muted);font-weight:500;}
+.bar-val{font-size:8px;font-weight:700;color:var(--text);min-height:10px;}
+.goal-line{position:absolute;left:0;right:0;height:1px;background:var(--pri);pointer-events:none;}
+.goal-tag{position:absolute;right:0;font-size:9px;color:var(--pri);font-weight:700;top:-11px;}
+.stat-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:12px 16px;}
+.st-card{background:var(--card);border-radius:12px;padding:14px;}
+.st-lbl{font-size:12px;color:var(--muted);margin-bottom:4px;}
+.st-val{font-size:22px;font-weight:800;}
+.st-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+
+/* Settings */
+.set-sec-lbl{font-size:12px;font-weight:700;color:var(--muted);padding:16px 16px 6px;letter-spacing:.06em;text-transform:uppercase;}
+.set-sec{background:var(--card);margin-bottom:0;}
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:15px 16px;border-bottom:1px solid var(--border);}
+.set-row:last-child{border-bottom:none;}
+.set-lbl{font-size:15px;}
+.set-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.set-action{font-size:13px;font-weight:700;color:var(--pri);border:none;background:var(--pri-l);border-radius:8px;padding:7px 13px;cursor:pointer;}
+.bgt-inp{width:82px;font-size:17px;font-weight:700;border:1.5px solid var(--border);border-radius:8px;padding:6px 8px;text-align:center;color:var(--pri);}
+.bgt-inp:focus{outline:none;border-color:var(--pri);}
+
+/* Legend */
+.legend{display:flex;gap:10px;padding:8px 16px;flex-wrap:wrap;}
+.leg-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);}
+.leg-dot{width:10px;height:10px;border-radius:3px;}
+
+/* Toast */
+.toast{position:fixed;top:24px;left:50%;transform:translateX(-50%);background:#2C1810;color:#fff;font-size:14px;font-weight:600;padding:10px 22px;border-radius:24px;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+input[type=number]{-moz-appearance:textfield;}
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const { useState, useEffect } = React;
+<div id="app">
 
-const todayStr = () => {
-  const d = new Date();
-  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-");
-};
+<!-- ====== 記録 ====== -->
+<div class="screen active" id="sc-log">
+  <div class="date-nav">
+    <button class="date-arrow" onclick="shiftDate(-1)">‹</button>
+    <div class="date-center">
+      <span class="date-label" id="date-label"></span>
+      <button class="today-pill" id="today-pill" style="display:none" onclick="goToday()">今日へ戻る</button>
+    </div>
+    <button class="date-arrow" id="next-arrow" onclick="shiftDate(1)">›</button>
+  </div>
+  <div class="budget-section">
+    <div class="budget-row">
+      <div><span class="budget-consumed" id="consumed"></span> <span class="budget-of">/ <span id="bgt-lbl"></span> kcal</span></div>
+      <span class="budget-remain" id="remain"></span>
+    </div>
+    <div class="bar-wrap"><div class="bar" id="bgt-bar"></div></div>
+  </div>
+  <div id="slots-wrap"></div>
+</div>
 
-const BUDGET_DEFAULT = 2000;
+<!-- ====== カレンダー ====== -->
+<div class="screen" id="sc-cal">
+  <div class="sec-hd">
+    <button class="icon-btn" onclick="calShift(-1)">‹</button>
+    <span class="sec-title" id="cal-month"></span>
+    <button class="icon-btn" onclick="calShift(1)">›</button>
+  </div>
+  <div class="legend">
+    <div class="leg-item"><div class="leg-dot" style="background:var(--ok-l);border:1px solid #52B78B"></div>目標内</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--warn-l);border:1px solid #F5A623"></div>〜120%</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--danger-l);border:1px solid #E84A4A"></div>超過</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#F8F4F2"></div>記録なし</div>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+  <div class="cal-sum" id="cal-sum"></div>
+</div>
 
+<!-- ====== 集計 ====== -->
+<div class="screen" id="sc-stats">
+  <div class="toggle-wrap">
+    <button class="toggle-btn active" id="tw-btn" onclick="switchStats('weekly')">週間（7日）</button>
+    <button class="toggle-btn" id="tm-btn" onclick="switchStats('monthly')">月間（30日）</button>
+  </div>
+  <div class="chart-area" id="chart-area"></div>
+  <div class="stat-cards" id="stat-cards"></div>
+</div>
+
+<!-- ====== 設定 ====== -->
+<div class="screen" id="sc-settings">
+  <div class="set-sec-lbl">目標カロリー</div>
+  <div class="set-sec">
+    <div class="set-row">
+      <div><div class="set-lbl">1日の目標</div><div class="set-sub">記録の基準になります</div></div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input type="number" class="bgt-inp" id="bgt-inp" step="50" min="1000" max="5000">
+        <span style="font-size:13px;color:var(--muted)">kcal</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="set-sec-lbl">バックアップ</div>
+  <div class="set-sec">
+    <div class="set-row">
+      <div><div class="set-lbl">データのエクスポート</div><div class="set-sub">JSONファイルとして保存</div></div>
+      <button class="set-action" onclick="doExport()">書き出す</button>
+    </div>
+    <div class="set-row">
+      <div><div class="set-lbl">データのリストア</div><div class="set-sub">JSONファイルから復元</div></div>
+      <button class="set-action" onclick="document.getElementById('restore-inp').click()">読み込む</button>
+    </div>
+  </div>
+
+  <div class="set-sec-lbl">よく使う食品</div>
+  <div class="set-sec">
+    <div class="set-row">
+      <div><div class="set-lbl">カスタム入力の履歴</div><div class="set-sub" id="custom-count"></div></div>
+      <button class="set-action" onclick="clearCustom()">クリア</button>
+    </div>
+  </div>
+
+  <div style="padding:24px 16px;color:var(--muted);font-size:12px;text-align:center">
+    カロリー記録 v2.0 — データはこのデバイスのみに保存されます
+  </div>
+</div>
+
+<!-- Nav -->
+<nav id="bottom-nav">
+  <button class="nav-btn active" id="nav-log" onclick="switchScreen('log')"><span class="nav-icon">📝</span>記録</button>
+  <button class="nav-btn" id="nav-cal" onclick="switchScreen('cal')"><span class="nav-icon">📅</span>カレンダー</button>
+  <button class="nav-btn" id="nav-stats" onclick="switchScreen('stats')"><span class="nav-icon">📊</span>集計</button>
+  <button class="nav-btn" id="nav-settings" onclick="switchScreen('settings')"><span class="nav-icon">⚙️</span>設定</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="restore-inp" accept=".json" style="display:none" onchange="doImport(this)">
+</div>
+
+<script>
+// ===== CONSTANTS =====
 const FOOD_DB = {
-  主食: [
-    {name:"白米(150g)",kcal:252},{name:"白米(200g)",kcal:336},
-    {name:"食パン1枚",kcal:158},{name:"おにぎり1個",kcal:170},
-    {name:"うどん(1玉)",kcal:240},{name:"そば(1玉)",kcal:230},
-    {name:"パスタ(乾80g)",kcal:284},{name:"雑炊(1杯)",kcal:150},
+  主食:[
+    {n:"白米(150g)",k:252},{n:"白米(200g)",k:336},{n:"食パン1枚",k:158},
+    {n:"おにぎり1個",k:170},{n:"うどん(1玉)",k:240},{n:"そば(1玉)",k:230},
+    {n:"パスタ(乾80g)",k:284},{n:"雑炊(1杯)",k:150},{n:"ラーメン",k:480},
+    {n:"チャーハン",k:520},{n:"もち2個",k:234},{n:"玄米(150g)",k:248},
   ],
-  汁物: [
-    {name:"味噌汁",kcal:35},{name:"豚汁",kcal:120},
-    {name:"スープ",kcal:50},{name:"コンソメスープ",kcal:20},
+  汁物:[
+    {n:"味噌汁",k:35},{n:"豚汁",k:120},{n:"スープ",k:50},
+    {n:"コンソメスープ",k:20},{n:"クラムチャウダー",k:160},{n:"お吸い物",k:15},
   ],
-  メイン: [
-    {name:"鶏胸肉ソテー",kcal:200},{name:"鮭の塩焼き",kcal:180},
-    {name:"豚しょうが焼き",kcal:320},{name:"ハンバーグ",kcal:380},
-    {name:"唐揚げ3個",kcal:270},{name:"目玉焼き",kcal:100},
-    {name:"卵焼き",kcal:120},{name:"豆腐(1/2丁)",kcal:80},{name:"納豆1パック",kcal:95},
+  メイン:[
+    {n:"鶏胸肉ソテー",k:200},{n:"鮭の塩焼き",k:180},{n:"豚しょうが焼き",k:320},
+    {n:"ハンバーグ",k:380},{n:"唐揚げ3個",k:270},{n:"目玉焼き",k:100},
+    {n:"卵焼き",k:120},{n:"豆腐(1/2丁)",k:80},{n:"納豆1パック",k:95},
+    {n:"ゆで卵",k:78},{n:"サバ味噌煮",k:220},{n:"豚カツ",k:450},
+    {n:"焼き魚(中)",k:160},{n:"餃子5個",k:200},
   ],
-  サブ: [
-    {name:"ほうれん草おひたし",kcal:30},{name:"きんぴらごぼう",kcal:80},
-    {name:"ひじき煮",kcal:60},{name:"冷奴",kcal:60},
-    {name:"サラダ(小)",kcal:50},{name:"ポテトサラダ",kcal:150},
+  サブ:[
+    {n:"ほうれん草おひたし",k:30},{n:"きんぴら",k:90},{n:"ひじき煮",k:80},
+    {n:"サラダ(小)",k:50},{n:"ポテトサラダ",k:150},{n:"冷奴",k:40},
+    {n:"ブロッコリー",k:33},{n:"枝豆(50g)",k:68},
   ],
-  添え物: [
-    {name:"キャベツ千切り",kcal:20},{name:"レタス",kcal:10},
-    {name:"トマト1個",kcal:35},{name:"きゅうり",kcal:15},
-    {name:"梅干し1個",kcal:10},{name:"漬物小鉢",kcal:20},
+  添え物:[
+    {n:"キャベツ千切り",k:20},{n:"レタス",k:10},{n:"トマト1個",k:35},
+    {n:"きゅうり",k:15},{n:"梅干し1個",k:10},{n:"漬物小鉢",k:20},
+    {n:"アボカド(1/2)",k:95},{n:"コーン缶(小)",k:65},
   ],
-  飲物: [
-    {name:"水/お茶(0kcal)",kcal:0},{name:"ブラックコーヒー",kcal:5},
-    {name:"牛乳200ml",kcal:134},{name:"豆乳200ml",kcal:92},
-    {name:"オレンジジュース",kcal:90},{name:"スポーツドリンク",kcal:50},
+  飲物:[
+    {n:"水/お茶",k:0},{n:"ブラックコーヒー",k:5},{n:"牛乳200ml",k:134},
+    {n:"豆乳200ml",k:92},{n:"オレンジジュース",k:90},{n:"スポーツドリンク",k:50},
+    {n:"ビール350ml",k:140},{n:"ハイボール",k:90},{n:"赤ワイン1杯",k:85},
   ],
-  "⭐三ツ星": [
-    {name:"ローストチキン",kcal:290},{name:"サーモンフライ",kcal:310},
-    {name:"デミグラスハンバーグ",kcal:380},{name:"ガパオライス",kcal:420},
-    {name:"海老マヨ",kcal:260},{name:"鶏のトマト煮",kcal:250},
-    {name:"豚の生姜焼き",kcal:340},{name:"チキン南蛮",kcal:400},
-    {name:"鮭の西京焼き",kcal:220},{name:"豆腐ハンバーグ",kcal:280},
-    {name:"チキンソテー",kcal:300},{name:"麻婆豆腐",kcal:350},
-    {name:"ビーフカレー(1食)",kcal:480},{name:"グリーンカレー",kcal:430},
-    {name:"パスタ(ミート)",kcal:520},
+  "⭐三ツ星":[
+    {n:"ローストチキン",k:290},{n:"サーモンフライ",k:310},{n:"デミグラスハンバーグ",k:380},
+    {n:"ガパオライス",k:420},{n:"海老マヨ",k:260},{n:"鶏のトマト煮",k:250},
+    {n:"豚の生姜焼き",k:340},{n:"チキン南蛮",k:400},{n:"ビーフカレー(1食)",k:480},
+    {n:"グリーンカレー",k:430},{n:"パスタ(ミート)",k:520},{n:"鮭の西京焼き",k:220},
   ],
 };
+const SLOTS = ["朝食","昼食","夕食","間食"];
+const SLOT_EM = {朝食:"🌅",昼食:"☀️",夕食:"🌙",間食:"🍵"};
+const EMPTY = ()=>({朝食:[],昼食:[],夕食:[],間食:[]});
 
-const CATS = Object.keys(FOOD_DB);
-const MEAL_SLOTS = ["朝食","昼食","夕食","間食"];
+// ===== STORAGE =====
+const todayStr=()=>{const d=new Date();return[d.getFullYear(),pad(d.getMonth()+1),pad(d.getDate())].join('-');};
+const pad=n=>String(n).padStart(2,'0');
+const loadDay=d=>{try{const r=localStorage.getItem('cal_'+d);return r?JSON.parse(r):EMPTY();}catch{return EMPTY();}};
+const saveDay=(d,v)=>{try{localStorage.setItem('cal_'+d,JSON.stringify(v));}catch{}};
+const loadBudget=()=>{try{return parseInt(localStorage.getItem('cal_budget'))||2000;}catch{return 2000;}};
+const saveBudget=v=>{try{localStorage.setItem('cal_budget',String(v));}catch{}};
+const loadCustom=()=>{try{return JSON.parse(localStorage.getItem('cal_custom')||'[]');}catch{return[];}};
+const saveCustom=v=>{try{localStorage.setItem('cal_custom',JSON.stringify(v));}catch{}};
 
-const loadDay = (date) => {
-  try { const r = localStorage.getItem("calorie_"+date); return r ? JSON.parse(r) : {朝食:[],昼食:[],夕食:[],間食:[]}; }
-  catch { return {朝食:[],昼食:[],夕食:[],間食:[]}; }
-};
-const saveDay = (date, data) => { try { localStorage.setItem("calorie_"+date, JSON.stringify(data)); } catch {} };
-const loadBudget = () => { try { return parseInt(localStorage.getItem("calorie_budget")) || BUDGET_DEFAULT; } catch { return BUDGET_DEFAULT; } };
-const saveBudget = (b) => { try { localStorage.setItem("calorie_budget", String(b)); } catch {} };
-
-// ── バックアップ関数（追加） ──────────────────────────
-const exportBackup = () => {
-  const backup = { exportedAt: new Date().toISOString(), budget: loadBudget(), days: {} };
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith("calorie_")) {
-      const dateKey = key.replace("calorie_", "");
-      try { backup.days[dateKey] = JSON.parse(localStorage.getItem(key)); } catch {}
+// Legacy key migration (calorie_YYYY-MM-DD → cal_YYYY-MM-DD)
+(function migrate(){
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith('calorie_')&&!k.includes('budget')&&!k.includes('custom')&&!k.includes('foods')){
+      const date=k.replace('calorie_','');
+      if(/^\d{4}-\d{2}-\d{2}$/.test(date)&&!localStorage.getItem('cal_'+date)){
+        localStorage.setItem('cal_'+date,localStorage.getItem(k));
+      }
     }
   }
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `calorie_backup_${todayStr()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-};
+  const ob=localStorage.getItem('calorie_budget');
+  if(ob&&!localStorage.getItem('cal_budget'))localStorage.setItem('cal_budget',ob);
+  const oc=localStorage.getItem('calorie_custom_foods');
+  if(oc&&!localStorage.getItem('cal_custom'))localStorage.setItem('cal_custom',oc);
+})();
 
-function App() {
-  const [date, setDate] = useState(() => todayStr());
-  const [meals, setMeals] = useState(() => loadDay(todayStr()));
-  const [budget, setBudget] = useState(() => loadBudget());
-  const [openSlot, setOpenSlot] = useState(null);
-  const [activeCat, setActiveCat] = useState(CATS[0]);
-  const [editingKcal, setEditingKcal] = useState(null);
-  const [editingKcalVal, setEditingKcalVal] = useState("");
-  const [budgetEdit, setBudgetEdit] = useState(false);
-  const [budgetVal, setBudgetVal] = useState("");
-  const [customName, setCustomName] = useState("");
-  const [customKcal, setCustomKcal] = useState("");
-  const [customQty, setCustomQty] = useState("1");
-
-  const isToday = date === todayStr();
-
-  useEffect(() => { setMeals(loadDay(date)); }, [date]);
-
-  const shiftDate = (delta) => {
-    const [dy, dm, dd] = date.split("-").map(Number);
-    const d = new Date(dy, dm-1, dd);
-    d.setDate(d.getDate() + delta);
-    const next = [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-");
-    if (next > todayStr()) return;
-    setDate(next); setOpenSlot(null);
-  };
-
-  const addFood = (slot, food) => {
-    setMeals(prev => {
-      const updated = {...prev, [slot]: [...prev[slot], {...food, id: Date.now()+Math.random()}]};
-      saveDay(date, updated); return updated;
-    });
-  };
-
-  const removeFood = (slot, id) => {
-    setMeals(prev => {
-      const updated = {...prev, [slot]: prev[slot].filter(f => f.id !== id)};
-      saveDay(date, updated); return updated;
-    });
-  };
-
-  const updateKcal = (slot, idx, val) => {
-    const n = parseInt(val);
-    if (isNaN(n) || n < 0) return;
-    setMeals(prev => {
-      const arr = [...prev[slot]];
-      arr[idx] = {...arr[idx], kcal: n, edited: true};
-      const updated = {...prev, [slot]: arr};
-      saveDay(date, updated); return updated;
-    });
-    setEditingKcal(null);
-  };
-
-  const addCustom = (slot) => {
-    const k = parseInt(customKcal);
-    const q = parseFloat(customQty) || 1;
-    if (!customName.trim() || isNaN(k) || k < 0) return;
-    const totalKcal = Math.round(k * q);
-    const label = q !== 1 ? `${customName.trim()}×${q}` : customName.trim();
-    addFood(slot, {name: label, kcal: totalKcal});
-    setCustomName(""); setCustomKcal(""); setCustomQty("1");
-  };
-
-  const totalKcal = Object.values(meals).flat().reduce((s,f) => s+f.kcal, 0);
-  const remaining = budget - totalKcal;
-  const pct = Math.min(100, Math.round(totalKcal/budget*100));
-  const over = totalKcal > budget;
-
-  const fmtDate = (d) => {
-    const [fy, fm, fd] = d.split("-").map(Number);
-    const obj = new Date(fy, fm-1, fd);
-    const days = ["日","月","火","水","木","金","土"];
-    return `${obj.getMonth()+1}月${obj.getDate()}日(${days[obj.getDay()]})`;
-  };
-
-  return (
-    <div style={{fontFamily:"'Hiragino Sans',sans-serif",maxWidth:420,margin:"0 auto",padding:"12px 12px 80px",background:"#f7f6f4",minHeight:"100vh",fontSize:14}}>
-
-      {/* ヘッダー */}
-      <div style={{background:"#fff",borderRadius:14,padding:"14px 16px",marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
-          <span style={{fontSize:16,fontWeight:700,color:"#333"}}>{fmtDate(date)}</span>
-          {isToday && <span style={{fontSize:11,background:"#4CAF50",color:"#fff",borderRadius:8,padding:"2px 8px"}}>今日</span>}
-        </div>
-        <div style={{fontSize:26,fontWeight:800,color:over?"#ef5350":"#333",textAlign:"center"}}>
-          {totalKcal} <span style={{fontSize:14,fontWeight:400}}>kcal</span>
-        </div>
-        <div style={{fontSize:12,color:"#999",textAlign:"center",marginTop:2}}>
-          {over ? `⚠️ ${Math.abs(remaining)} kcal オーバー` : `残り ${remaining} kcal`}
-        </div>
-        <div style={{background:"#eee",borderRadius:8,height:10,margin:"10px 0 6px"}}>
-          <div style={{height:10,borderRadius:8,background:over?"#ef5350":"#66bb6a",width:pct+"%",transition:"width .3s"}} />
-        </div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#888"}}>
-          <span>0</span><span>{pct}%</span><span>{budget}</span>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"center",marginTop:8}}>
-          <span style={{fontSize:12,color:"#999"}}>目標:</span>
-          {budgetEdit ? (
-            <>
-              <input type="number" value={budgetVal} onChange={e=>setBudgetVal(e.target.value)}
-                style={{width:70,fontSize:13,border:"1px solid #1976d2",borderRadius:6,padding:"2px 6px"}} autoFocus />
-              <button onClick={()=>{const n=parseInt(budgetVal);if(!isNaN(n)&&n>0){setBudget(n);saveBudget(n);}setBudgetEdit(false);}}
-                style={{background:"#1976d2",color:"#fff",border:"none",borderRadius:16,padding:"4px 12px",fontSize:12,cursor:"pointer"}}>確定</button>
-            </>
-          ) : (
-            <span onClick={()=>{setBudgetVal(String(budget));setBudgetEdit(true);}}
-              style={{fontSize:13,color:"#1976d2",cursor:"pointer",textDecoration:"underline dotted"}}>{budget} kcal ✏️</span>
-          )}
-        </div>
-      </div>
-
-      {/* 食事スロット */}
-      {MEAL_SLOTS.map(slot => {
-        const items = meals[slot] || [];
-        const slotKcal = items.reduce((s,f)=>s+f.kcal,0);
-        const open = openSlot === slot;
-        return (
-          <div key={slot} style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
-            <button onClick={()=>setOpenSlot(open?null:slot)}
-              style={{width:"100%",textAlign:"left",background:open?"#e8f5e9":"#fafafa",border:"1px solid "+(open?"#a5d6a7":"#e0e0e0"),borderRadius:10,padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:items.length>0||open?8:0}}>
-              <span style={{fontWeight:700,color:"#333"}}>{slot}</span>
-              <span style={{fontSize:13,color:"#888"}}>{slotKcal>0?`${slotKcal} kcal`:"未入力"} {open?"▲":"▼"}</span>
-            </button>
-
-            {items.map((f,i) => (
-              <div key={f.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 2px",borderBottom:"1px solid #f0f0f0"}}>
-                <span style={{flex:1,color:"#444",fontSize:13}}>{f.name}</span>
-                {editingKcal?.slot===slot&&editingKcal?.idx===i ? (
-                  <input type="number" value={editingKcalVal}
-                    onChange={e=>setEditingKcalVal(e.target.value)}
-                    onBlur={()=>updateKcal(slot,i,editingKcalVal)}
-                    style={{width:56,fontSize:13,border:"1px solid #1976d2",borderRadius:6,padding:"2px 4px",textAlign:"right"}} autoFocus />
-                ) : (
-                  <span onClick={()=>{setEditingKcal({slot,idx:i});setEditingKcalVal(String(f.kcal));}}
-                    style={{fontSize:13,color:"#1976d2",cursor:"pointer",marginRight:4,minWidth:60,textAlign:"right"}}>
-                    {f.kcal}{f.edited?"*":""} kcal
-                  </span>
-                )}
-                <button onClick={()=>removeFood(slot,f.id)}
-                  style={{color:"#e57373",background:"none",border:"none",cursor:"pointer",fontSize:18,padding:"0 4px"}}>×</button>
-              </div>
-            ))}
-
-            {open && (
-              <div style={{marginTop:8}}>
-                <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:6,marginBottom:8}}>
-                  {CATS.map(c=>(
-                    <button key={c} onClick={()=>setActiveCat(c)}
-                      style={{whiteSpace:"nowrap",padding:"5px 10px",borderRadius:20,border:"none",cursor:"pointer",fontSize:12,
-                        background:activeCat===c?(c==="⭐三ツ星"?"#ffd54f":"#1976d2"):(c==="⭐三ツ星"?"#fff9c4":"#eee"),
-                        color:activeCat===c?(c==="⭐三ツ星"?"#7b5800":"#fff"):(c==="⭐三ツ星"?"#7b5800":"#555"),
-                        fontWeight:activeCat===c?700:400}}>
-                      {c}
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
-                  {FOOD_DB[activeCat].map(f=>(
-                    <button key={f.name} onClick={()=>addFood(slot,f)}
-                      style={{padding:"6px 10px",borderRadius:20,border:"1px solid "+(activeCat==="⭐三ツ星"?"#ffd54f":"#ddd"),
-                        background:activeCat==="⭐三ツ星"?"#fffde7":"#f5f5f5",cursor:"pointer",fontSize:12,color:"#444",textAlign:"center"}}>
-                      {f.name}<br/><span style={{color:"#999",fontSize:11}}>{f.kcal} kcal</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{background:"#f0f4ff",borderRadius:10,padding:"10px 12px",borderTop:"1px solid #e0e8ff"}}>
-                  <div style={{fontSize:11,fontWeight:700,color:"#1976d2",marginBottom:6}}>✏️ カスタム入力</div>
-                  <input type="text" placeholder="食品名" value={customName} onChange={e=>setCustomName(e.target.value)}
-                    style={{width:"100%",fontSize:13,border:"1px solid #bbdefb",borderRadius:8,padding:"7px 10px",marginBottom:6,outline:"none"}} />
-                  <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                    <input type="number" placeholder="kcal" value={customKcal} onChange={e=>setCustomKcal(e.target.value)}
-                      style={{width:70,fontSize:13,border:"1px solid #bbdefb",borderRadius:8,padding:"7px 6px",outline:"none"}} />
-                    <span style={{fontSize:12,color:"#999"}}>×</span>
-                    <input type="number" placeholder="数量" value={customQty} onChange={e=>setCustomQty(e.target.value)}
-                      style={{width:50,fontSize:13,border:"1px solid #bbdefb",borderRadius:8,padding:"7px 6px",outline:"none"}} />
-                    <button onClick={()=>addCustom(slot)}
-                      style={{flex:1,background:"#1976d2",color:"#fff",border:"none",borderRadius:8,padding:"8px 6px",fontSize:13,cursor:"pointer",fontWeight:600}}>
-                      追加
-                    </button>
-                  </div>
-                  <div style={{fontSize:10,color:"#90a4ae",marginTop:5}}>
-                    例）ヨーグルト 60kcal × 1　→　60kcal で追加
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {/* 日付ナビ */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
-        <button onClick={()=>shiftDate(-1)}
-          style={{background:"none",border:"1px solid #ddd",borderRadius:20,padding:"8px 16px",cursor:"pointer",fontSize:13,color:"#555"}}>← 前日</button>
-        {!isToday && (
-          <button onClick={()=>{setDate(todayStr());setOpenSlot(null);}}
-            style={{background:"#1976d2",color:"#fff",border:"none",borderRadius:20,padding:"8px 18px",cursor:"pointer",fontSize:13}}>今日へ戻る</button>
-        )}
-        <button onClick={()=>shiftDate(1)} disabled={isToday}
-          style={{background:"none",border:"1px solid #ddd",borderRadius:20,padding:"8px 16px",fontSize:13,color:"#555",cursor:isToday?"not-allowed":"pointer",opacity:isToday?0.35:1}}>翌日 →</button>
-      </div>
-
-      {/* ── バックアップボタン（追加） ── */}
-      <div style={{marginTop:20,textAlign:"center"}}>
-        <button onClick={exportBackup}
-          style={{background:"none",border:"1px solid #bbb",borderRadius:20,padding:"8px 20px",fontSize:12,color:"#888",cursor:"pointer"}}>
-          💾 データをバックアップ（JSON）
-        </button>
-        <div style={{fontSize:10,color:"#bbb",marginTop:4}}>
-          iPhoneのファイルアプリに保存してください
-        </div>
-      </div>
-
-    </div>
-  );
+function addToHistory(name,kcal){
+  const foods=loadCustom();
+  const i=foods.findIndex(f=>f.n===name&&f.k===kcal);
+  if(i>=0)foods[i].c=(foods[i].c||1)+1;
+  else foods.push({n:name,k:kcal,c:1});
+  foods.sort((a,b)=>(b.c||1)-(a.c||1));
+  if(foods.length>40)foods.length=40;
+  saveCustom(foods);
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+// ===== STATE =====
+let curDate=todayStr();
+let curMeals=loadDay(curDate);
+let curBudget=loadBudget();
+let openSlots=new Set();
+let slotCat={};
+let editKcal=null; // {slot,idx}
+let calYear=new Date().getFullYear();
+let calMonth=new Date().getMonth();
+let statsMode='weekly';
+
+// ===== SCREEN SWITCH =====
+function switchScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sc-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if(name==='cal')renderCal();
+  if(name==='stats')renderStats();
+  if(name==='settings')renderSettings();
+}
+
+// ===== LOG SCREEN =====
+function renderLog(){
+  const total=SLOTS.reduce((s,sl)=>s+(curMeals[sl]||[]).reduce((a,f)=>a+f.k,0),0);
+  const pct=curBudget>0?Math.min(total/curBudget*100,100):0;
+  const today=todayStr();
+  const isToday=curDate===today;
+
+  document.getElementById('date-label').textContent=fmtDate(curDate);
+  document.getElementById('today-pill').style.display=isToday?'none':'block';
+  const na=document.getElementById('next-arrow');
+  na.disabled=isToday; na.style.opacity=isToday?'.25':'1';
+
+  document.getElementById('consumed').textContent=total.toLocaleString();
+  document.getElementById('bgt-lbl').textContent=curBudget.toLocaleString();
+  const rem=curBudget-total;
+  const rel=document.getElementById('remain');
+  rel.style.color=rem>=0?'var(--ok)':'var(--danger)';
+  rel.textContent=rem>=0?`残 ${rem.toLocaleString()} kcal`:`超過 ${Math.abs(rem).toLocaleString()} kcal`;
+
+  const bar=document.getElementById('bgt-bar');
+  bar.style.width=pct+'%';
+  bar.style.background=pct<80?'var(--ok)':pct<100?'var(--warn)':'var(--danger)';
+
+  renderSlots();
+}
+
+function renderSlots(){
+  const wrap=document.getElementById('slots-wrap');
+  wrap.innerHTML='';
+  const customs=loadCustom();
+  const allCats=customs.length>0?['よく使う',...Object.keys(FOOD_DB)]:Object.keys(FOOD_DB);
+
+  SLOTS.forEach(sl=>{
+    const foods=curMeals[sl]||[];
+    const slKcal=foods.reduce((a,f)=>a+f.k,0);
+    const isOpen=openSlots.has(sl);
+    if(!slotCat[sl])slotCat[sl]=allCats[0];
+
+    const div=document.createElement('div');
+    div.className='slot';
+
+    let html=`<div class="slot-hd" onclick="toggleSlot('${sl}')">
+      <div class="slot-name"><span>${SLOT_EM[sl]}</span>${sl}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="slot-kcal">${slKcal>0?slKcal.toLocaleString()+' kcal':'—'}</span>
+        <span class="chevron ${isOpen?'open':''}">▼</span>
+      </div>
+    </div>`;
+
+    if(isOpen){
+      // food list
+      if(foods.length>0){
+        html+='<div class="food-list">';
+        foods.forEach((f,idx)=>{
+          const editing=editKcal&&editKcal.slot===sl&&editKcal.idx===idx;
+          html+=`<div class="food-row">
+            <span class="food-nm">${esc(f.n)}</span>
+            ${editing
+              ?`<div class="kcal-edit-row">
+                  <input class="kcal-edit-inp" id="kei" type="number" value="${f.k}" min="0" max="9999" onkeydown="if(event.key==='Enter')okKcal('${sl}',${idx})">
+                  <button class="kcal-ok" onclick="okKcal('${sl}',${idx})">✓</button>
+                </div>`
+              :`<button class="kcal-btn" onclick="startEdit('${sl}',${idx})">${f.k.toLocaleString()} kcal</button>`
+            }
+            <button class="del-btn" onclick="delFood('${sl}',${idx})">×</button>
+          </div>`;
+        });
+        html+='</div>';
+      }
+      // add panel
+      html+=`<div class="add-panel">
+        <div class="cat-tabs">
+          ${allCats.map(c=>`<button class="cat-tab ${slotCat[sl]===c?'active':''}" onclick="setCat('${sl}','${c}')">${c}</button>`).join('')}
+        </div>
+        <div class="food-grid" id="fg-${sl}"></div>
+        <div class="custom-row">
+          <input class="custom-nm" type="text" placeholder="食品名" id="cn-${sl}" oninput="suggestFood('${sl}')">
+          <input class="custom-kc" type="number" placeholder="kcal" id="ck-${sl}" min="0" max="9999">
+          <button class="custom-add" onclick="addCustom('${sl}')">追加</button>
+        </div>
+        <div id="sg-${sl}" class="suggest-row" style="display:none"></div>
+      </div>`;
+    }
+    div.innerHTML=html;
+    wrap.appendChild(div);
+
+    if(isOpen){
+      renderFoodGrid(sl);
+      if(editKcal&&editKcal.slot===sl){
+        setTimeout(()=>{const el=document.getElementById('kei');if(el){el.focus();el.select();}},30);
+      }
+    }
+  });
+}
+
+function renderFoodGrid(sl){
+  const grid=document.getElementById('fg-'+sl);
+  if(!grid)return;
+  const cat=slotCat[sl];
+  const items=cat==='よく使う'?loadCustom():FOOD_DB[cat]||[];
+  grid.innerHTML=items.map(f=>
+    `<button class="food-btn" onclick="addFood('${sl}','${escA(f.n)}',${f.k})">
+      <span class="fb-nm">${esc(f.n)}</span>
+      <span class="fb-kc">${f.k} kcal</span>
+    </button>`
+  ).join('');
+}
+
+function toggleSlot(sl){editKcal=null;openSlots.has(sl)?openSlots.delete(sl):openSlots.add(sl);renderLog();}
+
+function setCat(sl,cat){slotCat[sl]=cat;renderFoodGrid(sl);
+  document.querySelectorAll(`#sc-log .cat-tab`).forEach(b=>{
+    b.classList.toggle('active',b.textContent===cat&&b.closest('.add-panel')&&b.closest('.slot').querySelector('.slot-hd').getAttribute('onclick').includes(`'${sl}'`));
+  });
+  // easier: just re-render
+  renderSlots();
+}
+
+function addFood(sl,name,kcal){
+  curMeals[sl]=curMeals[sl]||[];
+  curMeals[sl].push({n:name,k:kcal,id:Date.now()+Math.random()});
+  saveDay(curDate,curMeals);renderLog();
+}
+function delFood(sl,idx){curMeals[sl].splice(idx,1);saveDay(curDate,curMeals);editKcal=null;renderLog();}
+function startEdit(sl,idx){editKcal={slot:sl,idx};renderLog();}
+function okKcal(sl,idx){
+  const el=document.getElementById('kei');
+  if(!el)return;
+  const v=parseInt(el.value);
+  if(!isNaN(v)&&v>=0){curMeals[sl][idx].k=v;saveDay(curDate,curMeals);}
+  editKcal=null;renderLog();
+}
+function addCustom(sl){
+  const ne=document.getElementById('cn-'+sl),ke=document.getElementById('ck-'+sl);
+  const name=ne?ne.value.trim():'';
+  const kcal=parseInt(ke?ke.value:'');
+  if(!name||isNaN(kcal)||kcal<0)return;
+  addToHistory(name,kcal);
+  addFood(sl,name,kcal);
+  if(ne)ne.value='';if(ke)ke.value='';
+  const sg=document.getElementById('sg-'+sl);if(sg)sg.style.display='none';
+}
+function suggestFood(sl){
+  const ne=document.getElementById('cn-'+sl),sg=document.getElementById('sg-'+sl);
+  if(!ne||!sg)return;
+  const q=ne.value.trim();
+  if(!q){sg.style.display='none';return;}
+  const hits=loadCustom().filter(f=>f.n.includes(q)).slice(0,5);
+  if(!hits.length){sg.style.display='none';return;}
+  sg.style.display='flex';
+  sg.innerHTML=hits.map(f=>
+    `<button class="suggest-chip" onclick="applySuggest('${sl}','${escA(f.n)}',${f.k})">${esc(f.n)} ${f.k}kcal</button>`
+  ).join('');
+}
+function applySuggest(sl,name,kcal){
+  const ne=document.getElementById('cn-'+sl),ke=document.getElementById('ck-'+sl),sg=document.getElementById('sg-'+sl);
+  if(ne)ne.value=name;if(ke)ke.value=kcal;if(sg)sg.style.display='none';
+}
+
+function shiftDate(d){
+  const [y,m,dd]=curDate.split('-').map(Number);
+  const dt=new Date(y,m-1,dd);dt.setDate(dt.getDate()+d);
+  const next=[dt.getFullYear(),pad(dt.getMonth()+1),pad(dt.getDate())].join('-');
+  if(next>todayStr())return;
+  curDate=next;curMeals=loadDay(curDate);editKcal=null;openSlots=new Set();renderLog();
+}
+function goToday(){curDate=todayStr();curMeals=loadDay(curDate);editKcal=null;openSlots=new Set();renderLog();}
+
+// ===== CALENDAR =====
+function renderCal(){
+  document.getElementById('cal-month').textContent=`${calYear}年${calMonth+1}月`;
+  const grid=document.getElementById('cal-grid');
+  grid.innerHTML=['日','月','火','水','木','金','土'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  const firstDow=new Date(calYear,calMonth,1).getDay();
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const today=todayStr();
+  const budget=loadBudget();
+  let total=0,recDays=0,okDays=0;
+  for(let i=0;i<firstDow;i++)grid.innerHTML+='<div></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=[calYear,pad(calMonth+1),pad(d)].join('-');
+    const data=loadDay(ds);
+    const hasData=Object.values(data).some(a=>a.length>0);
+    const kcal=hasData?Object.values(data).reduce((s,a)=>s+a.reduce((x,f)=>x+f.k,0),0):0;
+    const pct=budget>0?kcal/budget:0;
+    if(hasData){total+=kcal;recDays++;if(pct<=1)okDays++;}
+    const isFuture=ds>today;
+    let cls='cal-day';
+    if(isFuture)cls+=' d-future';
+    else if(!hasData)cls+=' d-none';
+    else if(pct<=1)cls+=' d-ok';
+    else if(pct<=1.2)cls+=' d-warn';
+    else cls+=' d-over';
+    if(ds===today)cls+=' d-today';
+    if(!isFuture)cls+=' clickable';
+    grid.innerHTML+=`<div class="${cls}" ${!isFuture?`onclick="gotoDate('${ds}')"`:''}>
+      <span class="cal-day-n">${d}</span>
+      ${hasData?`<span class="cal-day-k">${kcal}</span>`:''}
+    </div>`;
+  }
+  const avg=recDays>0?Math.round(total/recDays):0;
+  const rate=recDays>0?Math.round(okDays/recDays*100):null;
+  document.getElementById('cal-sum').innerHTML=`
+    <div class="cal-stat"><div class="cs-val">${recDays}</div><div class="cs-lbl">記録日数</div></div>
+    <div class="cal-stat"><div class="cs-val">${avg>0?avg.toLocaleString():'—'}</div><div class="cs-lbl">平均 kcal/日</div></div>
+    <div class="cal-stat"><div class="cs-val" style="color:${rate!==null&&rate>=70?'var(--ok)':'var(--danger)'}">${rate!==null?rate+'%':'—'}</div><div class="cs-lbl">目標達成率</div></div>
+  `;
+}
+function calShift(d){calMonth+=d;if(calMonth<0){calMonth=11;calYear--;}else if(calMonth>11){calMonth=0;calYear++;}renderCal();}
+function gotoDate(ds){curDate=ds;curMeals=loadDay(ds);editKcal=null;openSlots=new Set();switchScreen('log');renderLog();}
+
+// ===== STATS =====
+function switchStats(mode){
+  statsMode=mode;
+  document.getElementById('tw-btn').classList.toggle('active',mode==='weekly');
+  document.getElementById('tm-btn').classList.toggle('active',mode==='monthly');
+  renderStats();
+}
+function renderStats(){
+  const budget=loadBudget();
+  const n=statsMode==='weekly'?7:30;
+  const today=new Date();
+  const days=[];
+  for(let i=n-1;i>=0;i--){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const ds=[d.getFullYear(),pad(d.getMonth()+1),pad(d.getDate())].join('-');
+    const data=loadDay(ds);
+    const hasData=Object.values(data).some(a=>a.length>0);
+    const kcal=Object.values(data).reduce((s,a)=>s+a.reduce((x,f)=>x+f.k,0),0);
+    const dow=['日','月','火','水','木','金','土'][d.getDay()];
+    days.push({ds,dow,d:d.getDate(),kcal,hasData});
+  }
+  const maxKcal=Math.max(...days.map(d=>d.kcal),budget,1);
+  const bh=Math.round(budget/maxKcal*140);
+  const weekly=statsMode==='weekly';
+  let barsHtml='';
+  days.forEach(day=>{
+    const bh2=Math.round(day.kcal/maxKcal*140);
+    const color=!day.hasData?'#F0E0D8':day.kcal<=budget?'var(--ok)':'var(--danger)';
+    const isToday=day.ds===todayStr();
+    barsHtml+=`<div class="bar-col" onclick="gotoDate('${day.ds}')">
+      <span class="bar-val">${day.kcal>0?day.kcal:''}</span>
+      <div class="bar-fill" style="height:${bh2}px;background:${color}"></div>
+      <span class="bar-dow" style="color:${isToday?'var(--pri)':'var(--muted)'};font-weight:${isToday?700:400}">${weekly?day.dow:day.d}</span>
+    </div>`;
+  });
+  document.getElementById('chart-area').innerHTML=`
+    <div class="bars-row" style="gap:${weekly?'8':'3'}px">
+      ${barsHtml}
+      <div class="goal-line" style="bottom:${20+bh}px"><span class="goal-tag">目標</span></div>
+    </div>`;
+  const rec=days.filter(d=>d.hasData);
+  const totalKcal=rec.reduce((s,d)=>s+d.kcal,0);
+  const avg=rec.length>0?Math.round(totalKcal/rec.length):0;
+  const totalBgt=budget*n;
+  const bpct=rec.length>0&&totalBgt>0?Math.round(totalKcal/totalBgt*100):null;
+  document.getElementById('stat-cards').innerHTML=`
+    <div class="st-card"><div class="st-lbl">合計摂取</div><div class="st-val" style="color:var(--pri)">${totalKcal.toLocaleString()}</div><div class="st-sub">kcal (${n}日間)</div></div>
+    <div class="st-card"><div class="st-lbl">1日の平均</div><div class="st-val" style="color:${avg>0&&avg<=budget?'var(--ok)':'var(--danger)'}">${avg>0?avg.toLocaleString():'—'}</div><div class="st-sub">kcal/日 ／ 目標 ${budget.toLocaleString()}</div></div>
+    <div class="st-card"><div class="st-lbl">予算消化率</div><div class="st-val" style="color:${bpct!==null&&bpct<=100?'var(--ok)':'var(--danger)'}">${bpct!==null?bpct+'%':'—'}</div><div class="st-sub">総予算 ${totalBgt.toLocaleString()} kcal</div></div>
+    <div class="st-card"><div class="st-lbl">記録日数</div><div class="st-val">${rec.length}</div><div class="st-sub">日 ／ ${n}日</div></div>
+  `;
+}
+
+// ===== SETTINGS =====
+function renderSettings(){
+  const bi=document.getElementById('bgt-inp');
+  if(bi)bi.value=loadBudget();
+  const cc=document.getElementById('custom-count');
+  const cl=loadCustom().length;
+  if(cc)cc.textContent=cl>0?`${cl}件保存済み`:'記録なし';
+}
+function clearCustom(){
+  if(!confirm('カスタム食品の履歴をすべて削除しますか？'))return;
+  localStorage.removeItem('cal_custom');renderSettings();toast('履歴をクリアしました');
+}
+
+// ===== BACKUP / RESTORE =====
+function doExport(){
+  const budget=loadBudget();
+  const custom=loadCustom();
+  const days={};
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith('cal_')&&!/budget|custom/.test(k)){
+      try{days[k.replace('cal_','')]=JSON.parse(localStorage.getItem(k));}catch{}
+    }
+    // also export legacy keys
+    if(k&&k.startsWith('calorie_')&&!/budget|custom|foods/.test(k)){
+      const date=k.replace('calorie_','');
+      if(/^\d{4}-\d{2}-\d{2}$/.test(date)&&!days[date]){
+        try{days[date]=JSON.parse(localStorage.getItem(k));}catch{}
+      }
+    }
+  }
+  const data={version:2,exported_at:new Date().toISOString(),budget,custom_foods:custom,days};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`calorie_backup_${todayStr()}.json`;a.click();
+  URL.revokeObjectURL(url);toast('バックアップを書き出しました');
+}
+function doImport(inp){
+  const file=inp.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.days){toast('ファイル形式が正しくありません');return;}
+      const cnt=Object.keys(data.days).length;
+      if(!confirm(`${cnt}日分のデータを復元しますか？\n現在のデータは上書きされます。`))return;
+      if(data.budget)saveBudget(data.budget);
+      if(data.custom_foods)saveCustom(data.custom_foods);
+      Object.entries(data.days).forEach(([date,meals])=>localStorage.setItem('cal_'+date,JSON.stringify(meals)));
+      curBudget=loadBudget();curMeals=loadDay(curDate);
+      renderLog();renderCal();renderStats();renderSettings();
+      toast(`${cnt}日分を復元しました ✓`);
+    }catch{toast('読み込みに失敗しました');}
+    inp.value='';
+  };
+  reader.readAsText(file);
+}
+
+// ===== UTILS =====
+function fmtDate(ds){
+  const [y,m,d]=ds.split('-').map(Number);
+  const dt=new Date(y,m-1,d);
+  const dow=['日','月','火','水','木','金','土'][dt.getDay()];
+  const today=todayStr();
+  const yest=(()=>{const t=new Date();t.setDate(t.getDate()-1);return[t.getFullYear(),pad(t.getMonth()+1),pad(t.getDate())].join('-');})();
+  if(ds===today)return`今日 ${m}/${d}（${dow}）`;
+  if(ds===yest)return`昨日 ${m}/${d}（${dow}）`;
+  return`${m}/${d}（${dow}）`;
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escA(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+// ===== BOOT =====
+(function(){
+  curBudget=loadBudget();
+  renderLog();
+  // Budget input listener
+  const bi=document.getElementById('bgt-inp');
+  bi.addEventListener('change',()=>{
+    const v=parseInt(bi.value);
+    if(v>=1000&&v<=5000){curBudget=v;saveBudget(v);renderLog();toast('目標カロリーを更新しました');}
+  });
+})();
 </script>
 </body>
 </html>
