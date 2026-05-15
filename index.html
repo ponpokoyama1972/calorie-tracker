@@ -293,7 +293,9 @@ const EMPTY = ()=>({朝食:[],昼食:[],夕食:[],間食:[]});
 // ===== STORAGE =====
 const todayStr=()=>{const d=new Date();return[d.getFullYear(),pad(d.getMonth()+1),pad(d.getDate())].join('-');};
 const pad=n=>String(n).padStart(2,'0');
-const loadDay=d=>{try{const r=localStorage.getItem('cal_'+d);return r?JSON.parse(r):EMPTY();}catch{return EMPTY();}};
+const normFood=f=>({n:f.n||f.name||'',k:f.k||f.kcal||0,id:f.id||Date.now()+Math.random()});
+const normDay=data=>{const out=EMPTY();SLOTS.forEach(sl=>{out[sl]=(data[sl]||[]).map(normFood);});return out;};
+const loadDay=d=>{try{const r=localStorage.getItem('cal_'+d)||localStorage.getItem('calorie_'+d);return r?normDay(JSON.parse(r)):EMPTY();}catch{return EMPTY();}};
 const saveDay=(d,v)=>{try{localStorage.setItem('cal_'+d,JSON.stringify(v));}catch{}};
 const loadBudget=()=>{try{return parseInt(localStorage.getItem('cal_budget'))||2000;}catch{return 2000;}};
 const saveBudget=v=>{try{localStorage.setItem('cal_budget',String(v));}catch{}};
