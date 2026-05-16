@@ -729,32 +729,37 @@ function processImport(raw){
     var allEntries=Object.entries(data.days);
     var validDays=allEntries.filter(function(e){return dateRe.test(e[0]);});
     if(validDays.length===0){
-      var sample=allEntries.slice(0,3).map(function(e){return e[0];}).join(', ');
-      toast('日付キーなし。検出キー: '+sample);return;
+      toast('日付キーなし。キー:'+allEntries.slice(0,3).map(function(e){return e[0];}).join(','));
+      return;
     }
     var bgt=Number(data.budget)||0;
     if(bgt>0)saveBudget(bgt);
-    if(data.custom_foods)saveCustom(data.custom_foods);
     var saved=0;
+    var sampleMsg='';
     validDays.forEach(function(entry){
       var date=entry[0],meals=entry[1];
-      try{
-        var out={朝食:[],昼食:[],夕食:[],間食:[]};
-        SLOTS.forEach(function(sl){
-          out[sl]=(meals[sl]||[]).map(function(f){
-            return {n:getN(f),k:getK(f),id:f.id||Date.now()+Math.random()};
-          });
+      var out={朝食:[],昼食:[],夕食:[],間食:[]};
+      var slotNames=['朝食','昼食','夕食','間食'];
+      slotNames.forEach(function(sl){
+        var arr=meals[sl]||[];
+        out[sl]=arr.map(function(f){
+          // name/kcal形式と n/k形式の両方に対応
+          var name=f.n!==undefined?f.n:(f.name!==undefined?f.name:'');
+          var kcalVal=f.k!==undefined?f.k:(f.kcal!==undefined?f.kcal:0);
+          var kcalNum=parseFloat(kcalVal)||0;
+          if(!sampleMsg&&kcalNum>0)sampleMsg=name+':'+kcalNum+'kcal';
+          return {n:name,k:kcalNum,id:f.id||Date.now()+Math.random()};
         });
-        localStorage.setItem('cal_'+date,JSON.stringify(out));
-        saved++;
-      }catch(e2){}
+      });
+      localStorage.setItem('cal_'+date,JSON.stringify(out));
+      saved++;
     });
     curBudget=loadBudget();
     curMeals=loadDay(curDate);
     renderLog();renderCal();renderStats();renderSettings();
-    toast(saved+'日分を復元しました ✓');
+    toast(saved+'日分復元 ✓ 例:'+sampleMsg);
   }catch(err){
-    toast('パースエラー: '+(err&&err.message?err.message:String(err)));
+    toast('エラー:'+(err&&err.message?err.message:String(err)));
   }
 }
 
