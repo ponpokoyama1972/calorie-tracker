@@ -226,7 +226,13 @@ input[type=number]{-moz-appearance:textfield;}
     </div>
     <div class="set-row">
       <div><div class="set-lbl">データのリストア</div><div class="set-sub">JSONファイルから復元</div></div>
-      <button class="set-action" onclick="document.getElementById('restore-inp').click()">読み込む</button>
+      <button class="set-action" onclick="document.getElementById('restore-inp').click()">ファイル</button>
+    </div>
+    <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px">
+      <div class="set-lbl">JSONを貼り付けて復元</div>
+      <div class="set-sub">バックアップJSONの中身をコピーして貼り付け</div>
+      <textarea id="paste-json" placeholder="ここにJSONを貼り付け..." style="width:100%;height:80px;font-size:11px;font-family:monospace;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg);color:var(--text);resize:vertical"></textarea>
+      <button class="set-action" style="align-self:flex-end" onclick="doImportPaste()">この内容で復元</button>
     </div>
   </div>
 
@@ -701,45 +707,55 @@ function doExport(){
   const a=document.createElement('a');a.href=url;a.download=`calorie_backup_${todayStr()}.json`;a.click();
   URL.revokeObjectURL(url);toast('バックアップを書き出しました');
 }
+function doImportPaste(){
+  const ta=document.getElementById('paste-json');
+  if(!ta||!ta.value.trim()){toast('JSONを貼り付けてください');return;}
+  processImport(ta.value.trim());
+  ta.value='';
+}
 function doImport(inp){
   const file=inp.files[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      const raw=e.target.result;
-      const data=JSON.parse(raw);
-      if(!data||typeof data!=='object'){toast('JSONの形式が正しくありません');return;}
-      if(!data.days){toast('daysキーが見つかりません');return;}
-      const dateRe=/^\d{4}-\d{2}-\d{2}$/;
-      const validDays=Object.entries(data.days).filter(([d])=>dateRe.test(d));
-      if(validDays.length===0){toast('有効な日付データがありません');return;}
-      // 予算
-      const bgt=data.budget||(data.days&&data.days.budget);
-      if(bgt)saveBudget(Number(bgt));
-      if(data.custom_foods)saveCustom(data.custom_foods);
-      // 各日を保存
-      let saved=0;
-      validDays.forEach(([date,meals])=>{
-        try{
-          const out={朝食:[],昼食:[],夕食:[],間食:[]};
-          SLOTS.forEach(sl=>{
-            out[sl]=(meals[sl]||[]).map(f=>({n:getN(f),k:getK(f),id:f.id||Date.now()+Math.random()}));
-          });
-          localStorage.setItem('cal_'+date,JSON.stringify(out));
-          saved++;
-        }catch(e2){}
-      });
-      curBudget=loadBudget();
-      curMeals=loadDay(curDate);
-      renderLog();renderCal();renderStats();renderSettings();
-      toast(`${saved}日分を復元しました ✓`);
-    }catch(err){
-      toast('エラー: '+(err&&err.message?err.message:String(err)));
-    }
-    inp.value='';
-  };
-  reader.onerror=()=>toast('ファイルの読み込みに失敗しました');
+  reader.onload=function(e){processImport(e.target.result);};
+  reader.onerror=function(){toast('ファイル読み込み失敗');};
   reader.readAsText(file,'UTF-8');
+  inp.value='';
+}
+function processImport(raw){
+  try{
+    var data=JSON.parse(raw);
+    if(!data||!data.days){toast('形式エラー: daysがありません');return;}
+    var dateRe=new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    var allEntries=Object.entries(data.days);
+    var validDays=allEntries.filter(function(e){return dateRe.test(e[0]);});
+    if(validDays.length===0){
+      var sample=allEntries.slice(0,3).map(function(e){return e[0];}).join(', ');
+      toast('日付キーなし。検出キー: '+sample);return;
+    }
+    var bgt=Number(data.budget)||0;
+    if(bgt>0)saveBudget(bgt);
+    if(data.custom_foods)saveCustom(data.custom_foods);
+    var saved=0;
+    validDays.forEach(function(entry){
+      var date=entry[0],meals=entry[1];
+      try{
+        var out={朝食:[],昼食:[],夕食:[],間食:[]};
+        SLOTS.forEach(function(sl){
+          out[sl]=(meals[sl]||[]).map(function(f){
+            return {n:getN(f),k:getK(f),id:f.id||Date.now()+Math.random()};
+          });
+        });
+        localStorage.setItem('cal_'+date,JSON.stringify(out));
+        saved++;
+      }catch(e2){}
+    });
+    curBudget=loadBudget();
+    curMeals=loadDay(curDate);
+    renderLog();renderCal();renderStats();renderSettings();
+    toast(saved+'日分を復元しました ✓');
+  }catch(err){
+    toast('パースエラー: '+(err&&err.message?err.message:String(err)));
+  }
 }
 
 // ===== UTILS =====
