@@ -227,6 +227,14 @@ input[type=number]{-moz-appearance:textfield;}
     </div>
   </div>
 
+  <div class="set-sec-lbl">診断</div>
+  <div class="set-sec">
+    <div class="set-row">
+      <div><div class="set-lbl">データ確認</div><div class="set-sub">localStorageの内容を表示</div></div>
+      <button class="set-action" onclick="showDiag()">確認</button>
+    </div>
+  </div>
+  <div id="diag-out" style="display:none;margin:8px 16px;background:#f8f4f2;border-radius:8px;padding:12px;font-size:11px;font-family:monospace;color:#333;word-break:break-all;white-space:pre-wrap;max-height:300px;overflow-y:auto"></div>
   <div style="padding:24px 16px;color:var(--muted);font-size:12px;text-align:center">
     カロリー記録 v2.0 — データはこのデバイスのみに保存されます
   </div>
@@ -303,20 +311,23 @@ const loadCustom=()=>{try{return JSON.parse(localStorage.getItem('cal_custom')||
 const saveCustom=v=>{try{localStorage.setItem('cal_custom',JSON.stringify(v));}catch{}};
 
 // Legacy key migration (calorie_YYYY-MM-DD → cal_YYYY-MM-DD)
+// 旧キーを新キーへ安全にマイグレーション（Object.keysでインデックスずれ回避）
 (function migrate(){
-  for(let i=0;i<localStorage.length;i++){
-    const k=localStorage.key(i);
-    if(k&&k.startsWith('calorie_')&&!k.includes('budget')&&!k.includes('custom')&&!k.includes('foods')){
-      const date=k.replace('calorie_','');
-      if(/^\d{4}-\d{2}-\d{2}$/.test(date)&&!localStorage.getItem('cal_'+date)){
-        localStorage.setItem('cal_'+date,localStorage.getItem(k));
+  try{
+    Object.keys(localStorage).forEach(k=>{
+      if(!k)return;
+      if(k.startsWith('calorie_')&&!/budget|custom|foods/.test(k)){
+        const date=k.replace('calorie_','');
+        if(/^\d{4}-\d{2}-\d{2}$/.test(date)&&!localStorage.getItem('cal_'+date)){
+          localStorage.setItem('cal_'+date,localStorage.getItem(k));
+        }
       }
-    }
-  }
-  const ob=localStorage.getItem('calorie_budget');
-  if(ob&&!localStorage.getItem('cal_budget'))localStorage.setItem('cal_budget',ob);
-  const oc=localStorage.getItem('calorie_custom_foods');
-  if(oc&&!localStorage.getItem('cal_custom'))localStorage.setItem('cal_custom',oc);
+    });
+    const ob=localStorage.getItem('calorie_budget');
+    if(ob&&!localStorage.getItem('cal_budget'))localStorage.setItem('cal_budget',ob);
+    const oc=localStorage.getItem('calorie_custom_foods');
+    if(oc&&!localStorage.getItem('cal_custom'))localStorage.setItem('cal_custom',oc);
+  }catch(e){}
 })();
 
 function addToHistory(name,kcal){
@@ -623,6 +634,32 @@ function renderSettings(){
   const cl=loadCustom().length;
   if(cc)cc.textContent=cl>0?`${cl}件保存済み`:'記録なし';
 }
+function showDiag(){
+  const el=document.getElementById('diag-out');
+  const keys=Object.keys(localStorage).filter(k=>k.startsWith('cal')||k.startsWith('calorie'));
+  if(!keys.length){el.textContent='localStorageにカロリーデータが見つかりません';el.style.display='block';return;}
+  let out='=== 保存キー一覧 ===\n';
+  keys.forEach(k=>{
+    const raw=localStorage.getItem(k);
+    out+=`\n[${k}]\n`;
+    try{
+      const d=JSON.parse(raw);
+      if(typeof d==='object'&&!Array.isArray(d)){
+        let total=0,items=0;
+        Object.keys(d).forEach(sl=>{
+          if(Array.isArray(d[sl]))d[sl].forEach(f=>{
+            items++;
+            const kcal=f.k!==undefined?f.k:f.kcal;
+            total+=Number(kcal)||0;
+            out+=`  ${f.n||f.name}: k=${f.k} kcal=${f.kcal}\n`;
+          });
+        });
+        out+=`  → 合計 ${total}kcal, ${items}品目\n`;
+      }else{out+=raw.slice(0,100)+'\n';}
+    }catch{out+=raw.slice(0,80)+'\n';}
+  });
+  el.textContent=out;el.style.display='block';
+}
 function clearCustom(){
   if(!confirm('カスタム食品の履歴をすべて削除しますか？'))return;
   localStorage.removeItem('cal_custom');renderSettings();toast('履歴をクリアしました');
@@ -659,15 +696,28 @@ function doImport(inp){
     try{
       const data=JSON.parse(e.target.result);
       if(!data.days){toast('ファイル形式が正しくありません');return;}
-      const cnt=Object.keys(data.days).length;
+      // 有効な日付キーのみ抽出（"budget"など不正キーを除外）
+      const dateRe=/^\d{4}-\d{2}-\d{2}$/;
+      const validDays=Object.entries(data.days).filter(([d])=>dateRe.test(d));
+      const cnt=validDays.length;
       if(!confirm(`${cnt}日分のデータを復元しますか？\n現在のデータは上書きされます。`))return;
-      if(data.budget)saveBudget(data.budget);
+      // 予算を保存
+      const bgt=data.budget||data.days.budget;
+      if(bgt)saveBudget(Number(bgt));
       if(data.custom_foods)saveCustom(data.custom_foods);
-      Object.entries(data.days).forEach(([date,meals])=>localStorage.setItem('cal_'+date,JSON.stringify(meals)));
+      // 各日のデータを保存（name/kcal形式のまま保存 → loadDayがgetK/getNで変換）
+      validDays.forEach(([date,meals])=>{
+        // meals内のスロット配列を正規化して保存
+        const out={朝食:[],昼食:[],夕食:[],間食:[]};
+        SLOTS.forEach(sl=>{
+          out[sl]=(meals[sl]||[]).map(f=>({n:getN(f),k:getK(f),id:f.id||Date.now()+Math.random()}));
+        });
+        localStorage.setItem('cal_'+date,JSON.stringify(out));
+      });
       curBudget=loadBudget();curMeals=loadDay(curDate);
       renderLog();renderCal();renderStats();renderSettings();
       toast(`${cnt}日分を復元しました ✓`);
-    }catch{toast('読み込みに失敗しました');}
+    }catch(err){toast('読み込みに失敗しました: '+err.message);}
     inp.value='';
   };
   reader.readAsText(file);
