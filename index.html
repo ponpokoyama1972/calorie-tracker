@@ -333,6 +333,17 @@ const saveBudget=v=>{try{localStorage.setItem('cal_budget',String(v));}catch{}};
 const loadCustom=()=>{try{return JSON.parse(localStorage.getItem('cal_custom')||'[]');}catch{return[];}};
 const saveCustom=v=>{try{localStorage.setItem('cal_custom',JSON.stringify(v));}catch{}};
 
+const loadSlotMenu=sl=>{try{return JSON.parse(localStorage.getItem('cal_menu_'+sl)||'[]');}catch{return[];}};
+const saveSlotMenu=(sl,arr)=>{try{localStorage.setItem('cal_menu_'+sl,JSON.stringify(arr));}catch{}};
+const addToSlotMenu=(sl,name,k)=>{
+  var arr=loadSlotMenu(sl);
+  if(!arr.find(function(f){return f.n===name;})){
+    arr.push({n:name,k:k});
+    saveSlotMenu(sl,arr);
+  }
+};
+const inSlotMenu=(sl,name)=>loadSlotMenu(sl).some(function(f){return f.n===name;});
+
 // Legacy key migration (calorie_YYYY-MM-DD → cal_YYYY-MM-DD)
 // 旧キーを新キーへ安全にマイグレーション（Object.keysでインデックスずれ回避）
 (function migrate(){
@@ -370,6 +381,7 @@ let curBudget=loadBudget();
 let openSlots=new Set();
 let slotCat={};
 let editKcal=null; // {slot,idx}
+let pendingMenuAdd=null; // {slot,name,k}
 let calYear=new Date().getFullYear();
 let calMonth=new Date().getMonth();
 let statsMode='weekly';
@@ -414,10 +426,10 @@ function renderLog(){
 function renderSlots(){
   const wrap=document.getElementById('slots-wrap');
   wrap.innerHTML='';
-  const customs=loadCustom();
-  const allCats=Object.keys(FOOD_DB);
 
   SLOTS.forEach(sl=>{
+    const slotMenu=loadSlotMenu(sl);
+    const allCats=slotMenu.length>0?[sl+'の定番',...Object.keys(FOOD_DB)]:Object.keys(FOOD_DB);
     const foods=curMeals[sl]||[];
     const slKcal=foods.reduce((a,f)=>a+f.k,0);
     const isOpen=openSlots.has(sl);
@@ -454,6 +466,15 @@ function renderSlots(){
         });
         html+='</div>';
       }
+      // 定番追加確認プロンプト
+      if(pendingMenuAdd&&pendingMenuAdd.slot===sl){
+        var pm=pendingMenuAdd;
+        html+=`<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:#E8F5EE;border-left:4px solid #52B78B;margin-bottom:2px">
+          <span style="flex:1;font-size:13px;font-weight:500;color:#1A6644">「${esc(pm.name)}」を${sl}の定番に追加しますか？</span>
+          <button onclick="confirmSlotAdd(true)" style="font-size:12px;font-weight:700;background:#52B78B;color:#fff;border:none;border-radius:6px;padding:5px 12px;cursor:pointer">追加</button>
+          <button onclick="confirmSlotAdd(false)" style="font-size:12px;color:#52B78B;background:none;border:1px solid #52B78B;border-radius:6px;padding:5px 10px;cursor:pointer">スキップ</button>
+        </div>`;
+      }
       // add panel
       html+=`<div class="add-panel">
         <div class="cat-tabs">
@@ -484,7 +505,8 @@ function renderFoodGrid(sl){
   const grid=document.getElementById('fg-'+sl);
   if(!grid)return;
   const cat=slotCat[sl];
-  const items=FOOD_DB[cat]||[];
+  const slotSuffix='の定番';
+  const items=cat.endsWith(slotSuffix)?loadSlotMenu(sl):FOOD_DB[cat]||[];
   grid.innerHTML=items.map(f=>
     `<button class="food-btn" onclick="pressAnim(this);addFood('${sl}','${escA(f.n)}',${f.k})">
       <span class="fb-nm">${esc(f.n)}</span>
@@ -509,6 +531,19 @@ function addFood(sl,name,kcal){
   saveDay(curDate,curMeals);playAdd();renderLog();
   setTimeout(pulseBar,80);
   checkReminder();
+  // スロット別定番への追加確認
+  if(!inSlotMenu(sl,name)){
+    pendingMenuAdd={slot:sl,name:name,k:kcal};
+    renderSlots();
+  }
+}
+function confirmSlotAdd(yes){
+  if(yes&&pendingMenuAdd){
+    addToSlotMenu(pendingMenuAdd.slot,pendingMenuAdd.name,pendingMenuAdd.k);
+    toast('「'+pendingMenuAdd.name+'」を'+pendingMenuAdd.slot+'の定番に追加しました');
+  }
+  pendingMenuAdd=null;
+  renderSlots();
 }
 function delFood(sl,idx){curMeals[sl].splice(idx,1);saveDay(curDate,curMeals);editKcal=null;playDel();renderLog();}
 function startEdit(sl,idx){editKcal={slot:sl,idx};renderLog();}
@@ -821,6 +856,23 @@ function restoreBuiltin(){
   curBudget=loadBudget();
   curMeals=loadDay(curDate);
   renderLog();renderCal();renderStats();renderSettings();
+  // バックアップから各スロットの定番メニューも初期化
+  var slotFoods={朝食:{},昼食:{},夕食:{},間食:{}};
+  Object.keys(days).forEach(function(date){
+    var meals=days[date];
+    ['朝食','昼食','夕食','間食'].forEach(function(sl){
+      (meals[sl]||[]).forEach(function(f){
+        if(f.n&&!slotFoods[sl][f.n])slotFoods[sl][f.n]=f.k;
+      });
+    });
+  });
+  ['朝食','昼食','夕食','間食'].forEach(function(sl){
+    var existing=loadSlotMenu(sl);
+    if(existing.length===0){
+      var arr=Object.keys(slotFoods[sl]).map(function(n){return{n:n,k:slotFoods[sl][n]};});
+      saveSlotMenu(sl,arr);
+    }
+  });
   toast(saved+'日分を復元しました ✓ 予算:'+budget+'kcal');
 }
 
