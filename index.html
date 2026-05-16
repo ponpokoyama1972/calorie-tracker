@@ -706,33 +706,40 @@ function doImport(inp){
   const reader=new FileReader();
   reader.onload=e=>{
     try{
-      const data=JSON.parse(e.target.result);
-      if(!data.days){toast('ファイル形式が正しくありません');return;}
-      // 有効な日付キーのみ抽出（"budget"など不正キーを除外）
+      const raw=e.target.result;
+      const data=JSON.parse(raw);
+      if(!data||typeof data!=='object'){toast('JSONの形式が正しくありません');return;}
+      if(!data.days){toast('daysキーが見つかりません');return;}
       const dateRe=/^\d{4}-\d{2}-\d{2}$/;
       const validDays=Object.entries(data.days).filter(([d])=>dateRe.test(d));
-      const cnt=validDays.length;
-      if(!confirm(`${cnt}日分のデータを復元しますか？\n現在のデータは上書きされます。`))return;
-      // 予算を保存
-      const bgt=data.budget||data.days.budget;
+      if(validDays.length===0){toast('有効な日付データがありません');return;}
+      // 予算
+      const bgt=data.budget||(data.days&&data.days.budget);
       if(bgt)saveBudget(Number(bgt));
       if(data.custom_foods)saveCustom(data.custom_foods);
-      // 各日のデータを保存（name/kcal形式のまま保存 → loadDayがgetK/getNで変換）
+      // 各日を保存
+      let saved=0;
       validDays.forEach(([date,meals])=>{
-        // meals内のスロット配列を正規化して保存
-        const out={朝食:[],昼食:[],夕食:[],間食:[]};
-        SLOTS.forEach(sl=>{
-          out[sl]=(meals[sl]||[]).map(f=>({n:getN(f),k:getK(f),id:f.id||Date.now()+Math.random()}));
-        });
-        localStorage.setItem('cal_'+date,JSON.stringify(out));
+        try{
+          const out={朝食:[],昼食:[],夕食:[],間食:[]};
+          SLOTS.forEach(sl=>{
+            out[sl]=(meals[sl]||[]).map(f=>({n:getN(f),k:getK(f),id:f.id||Date.now()+Math.random()}));
+          });
+          localStorage.setItem('cal_'+date,JSON.stringify(out));
+          saved++;
+        }catch(e2){}
       });
-      curBudget=loadBudget();curMeals=loadDay(curDate);
+      curBudget=loadBudget();
+      curMeals=loadDay(curDate);
       renderLog();renderCal();renderStats();renderSettings();
-      toast(`${cnt}日分を復元しました ✓`);
-    }catch(err){toast('読み込みに失敗しました: '+err.message);}
+      toast(`${saved}日分を復元しました ✓`);
+    }catch(err){
+      toast('エラー: '+(err&&err.message?err.message:String(err)));
+    }
     inp.value='';
   };
-  reader.readAsText(file);
+  reader.onerror=()=>toast('ファイルの読み込みに失敗しました');
+  reader.readAsText(file,'UTF-8');
 }
 
 // ===== UTILS =====
