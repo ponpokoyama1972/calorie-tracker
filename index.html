@@ -142,6 +142,17 @@ body{font-family:-apple-system,'Hiragino Sans',sans-serif;background:var(--bg);c
 
 input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
 input[type=number]{-moz-appearance:textfield;}
+
+/* アニメーション */
+@keyframes slideIn{from{opacity:0;transform:translateX(-16px);}to{opacity:1;transform:translateX(0);}}
+@keyframes popIn{from{opacity:0;transform:scale(.7);}to{opacity:1;transform:scale(1);}}
+@keyframes barPulse{0%{filter:brightness(1);}50%{filter:brightness(1.25);}100%{filter:brightness(1);}}
+@keyframes btnPress{0%{transform:scale(1);}40%{transform:scale(.88);}100%{transform:scale(1);}}
+@keyframes toastBounce{0%{opacity:0;transform:translateX(-50%) translateY(-8px);}60%{transform:translateX(-50%) translateY(2px);}100%{opacity:1;transform:translateX(-50%) translateY(0);}}
+.food-row{animation:slideIn .22s ease both;}
+.toast.show{animation:toastBounce .3s ease both;}
+.bar-pulse{animation:barPulse .4s ease;}
+.btn-press{animation:btnPress .2s ease;}
 </style>
 </head>
 <body>
@@ -440,7 +451,7 @@ function renderSlots(){
         <div class="custom-row">
           <input class="custom-nm" type="text" placeholder="食品名" id="cn-${sl}" oninput="suggestFood('${sl}')">
           <input class="custom-kc" type="number" placeholder="kcal" id="ck-${sl}" min="0" max="9999">
-          <button class="custom-add" onclick="addCustom('${sl}')">追加</button>
+          <button class="custom-add" onclick="pressAnim(this);addCustom('${sl}')">追加</button>
         </div>
         <div id="sg-${sl}" class="suggest-row" style="display:none"></div>
       </div>`;
@@ -463,7 +474,7 @@ function renderFoodGrid(sl){
   const cat=slotCat[sl];
   const items=cat==='よく使う'?loadCustom():FOOD_DB[cat]||[];
   grid.innerHTML=items.map(f=>
-    `<button class="food-btn" onclick="addFood('${sl}','${escA(f.n)}',${f.k})">
+    `<button class="food-btn" onclick="pressAnim(this);addFood('${sl}','${escA(f.n)}',${f.k})">
       <span class="fb-nm">${esc(f.n)}</span>
       <span class="fb-kc">${f.k} kcal</span>
     </button>`
@@ -483,9 +494,10 @@ function setCat(sl,cat){slotCat[sl]=cat;renderFoodGrid(sl);
 function addFood(sl,name,kcal){
   curMeals[sl]=curMeals[sl]||[];
   curMeals[sl].push({n:name,k:kcal,id:Date.now()+Math.random()});
-  saveDay(curDate,curMeals);renderLog();
+  saveDay(curDate,curMeals);playAdd();renderLog();
+  setTimeout(pulseBar,80);
 }
-function delFood(sl,idx){curMeals[sl].splice(idx,1);saveDay(curDate,curMeals);editKcal=null;renderLog();}
+function delFood(sl,idx){curMeals[sl].splice(idx,1);saveDay(curDate,curMeals);editKcal=null;playDel();renderLog();}
 function startEdit(sl,idx){editKcal={slot:sl,idx};renderLog();}
 function okKcal(sl,idx){
   const el=document.getElementById('kei');
@@ -724,6 +736,48 @@ function doImport(inp){
 }
 
 // ===== UTILS =====
+// ===== SOUND =====
+let _actx=null;
+function getACtx(){
+  if(!_actx){try{_actx=new(window.AudioContext||window.webkitAudioContext)();}catch{}}
+  return _actx;
+}
+function playAdd(){
+  const ctx=getACtx();if(!ctx)return;
+  if(ctx.state==='suspended')ctx.resume();
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.connect(g);g.connect(ctx.destination);
+  o.frequency.setValueAtTime(880,ctx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(1200,ctx.currentTime+0.06);
+  g.gain.setValueAtTime(0.18,ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.12);
+  o.start(ctx.currentTime);o.stop(ctx.currentTime+0.13);
+}
+function playDel(){
+  const ctx=getACtx();if(!ctx)return;
+  if(ctx.state==='suspended')ctx.resume();
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.connect(g);g.connect(ctx.destination);
+  o.frequency.setValueAtTime(440,ctx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(220,ctx.currentTime+0.1);
+  g.gain.setValueAtTime(0.10,ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.12);
+  o.start(ctx.currentTime);o.stop(ctx.currentTime+0.13);
+}
+function pulseBar(){
+  const bar=document.getElementById('bgt-bar');
+  if(!bar)return;
+  bar.classList.remove('bar-pulse');
+  void bar.offsetWidth; // reflow
+  bar.classList.add('bar-pulse');
+  bar.addEventListener('animationend',()=>bar.classList.remove('bar-pulse'),{once:true});
+}
+function pressAnim(el){
+  if(!el)return;
+  el.classList.add('btn-press');
+  el.addEventListener('animationend',()=>el.classList.remove('btn-press'),{once:true});
+}
+
 function fmtDate(ds){
   const [y,m,d]=ds.split('-').map(Number);
   const dt=new Date(y,m-1,d);
